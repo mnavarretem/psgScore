@@ -821,31 +821,64 @@ fn_control_extrapanel()
             return
         end
           
-        ch_path	= fullfile(st_file.path,st_file.name); %#ok<NASGU>
+        ch_path	= fullfile(st_file.path,st_file.name); 
         save('psgHystory.mat','ch_path');
 
         nm_hDlg	= msgbox({'Data is loading and processing';...
                 'This can take some time'},'Data loading','help');
             
         st_file.objTimer    = [];
-        [~,st_file.fileName]= fileparts(st_file.name);
+        
+        [~,st_file.fileName,ch_fileExt]	= fileparts(st_file.name);
         
         st_file.hypnoFile	= sprintf('psgHypno-%s.mat',...
                             st_file.fileName);
         st_file.extraFile	= sprintf('psgExtra-%s.mat',...
                             st_file.fileName);
         
-        st_dat          = load(fullfile(st_file.path,st_file.name));
-        
-        if ~isfield(st_dat,'st_dat')
-            warndlg(sprintf(...
-                '%s is not an eeg file. Please select onther file',...
-                st_file.name))
-            return
-        end
-        
-        st_dat          = st_dat.st_dat;
+        switch ch_fileExt
+            case '.mat'
+                ch_fullFileName	= fullfile(st_file.path,st_file.name);
+                            
+                st_dat	= load(ch_fullFileName);
                 
+                if ~isfield(st_dat,'st_dat')
+                    warndlg(sprintf(...
+                        '%s is not an eeg file. Please select onther file',...
+                        st_file.name))
+                    return
+                end
+
+                st_dat	= st_dat.st_dat;
+
+            otherwise
+                
+                ch_resp	= questdlg(sprintf('%s. %s',...
+                        'You are going to load non-processed raw data',...
+                        'Do you want to continue?'),'Raw data dialog',...
+                        'Yes','No','No');
+                
+                switch ch_resp
+                    case 'Yes'
+                        
+                        st_cfg          = struct;
+                        st_cfg.dataset	=  fullfile(...
+                                        st_file.path,st_file.name);
+
+                        st_dat	= ft_preprocessing(st_cfg);
+
+                        st_dat.time{1}  = single(st_dat.time{1});
+                        st_dat.trial{1} = single(st_dat.trial{1}); 
+                        st_dat.chtype	= st_dat.hdr.chantype;
+
+                        st_dat	= rmfield(st_dat,'cfg');
+                        st_dat	= rmfield(st_dat,'sampleinfo'); 
+                        
+                    otherwise
+                        return
+                end
+        end                        
+        
         nm_resp	= exist(fullfile(st_file.path,st_file.hypnoFile),'file');
                 
         if logical(nm_resp)
@@ -917,6 +950,10 @@ fn_control_extrapanel()
                                         'Select TF associated .Mat file');
                                     
             try 
+                if isnumeric(ch_fileName)
+                    error('No data')
+                end
+                
                 st_longTerm	= load(fullfile(ch_filePath,ch_fileName),...
                             'st_patterns');
                 st_spectrum	= load(fullfile(ch_filePath,ch_fileName),...
@@ -1364,6 +1401,11 @@ fn_control_extrapanel()
             end
         end
         
+        
+        if ~isfield(st_spectrum,'labels')
+            return
+        end
+        
         nm_chId	= find(ismember(st_spectrum.labels,st_spectrum.curCh));
         
         if isempty(nm_chId)
@@ -1393,12 +1435,14 @@ fn_control_extrapanel()
             
         axes(st_ctrlTF.AxesTF); 
                 
-        st_hLines.Spect	= f_ImageMatrix(...
+        st_hLines.Spect	= fn_imagearray(...
                         mx_spectrumCh(:,...
                                 st_spectrum.posBeg:st_spectrum.posEnd),...            
                         st_spectrum.time(...
                             st_spectrum.posBeg:st_spectrum.posEnd),...         
-                        st_spectrum.freq,vt_limits,'hot',64,0);        
+                        st_spectrum.freq,...
+                        'Limits',vt_limits,...
+                        'Colormap','hot','ColorLevels',64);        
                            
         set(st_ctrlTF.AxesTF,...
             'YLim',[0.5 25],...
@@ -2310,6 +2354,10 @@ fn_control_extrapanel()
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_compute_longterm()
+        if isempty(fieldnames(st_longTerm))
+            return
+        end
+        
         st_longTerm.time	= linspace(...
                             st_dat.time{1}(1),st_dat.time{1}(end),...
                             numel(st_longTerm.delta{1}));
