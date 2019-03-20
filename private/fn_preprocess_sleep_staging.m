@@ -1,11 +1,11 @@
 % fn_preprocessSleepStaging
 
-function st_dat	= fn_preprocess_sleep_staging(ch_filename)
+% function st_dat	= fn_preprocess_sleep_staging(ch_filename)
 %% Database
 
-% ch_rootPath	= '\\PSYCH-121412\Database\REM_stimulation\REM_pilot\rawFiles\Room1';
-% vt_chName   = {'mgnmPilot_Room1_0001.eeg'};
-% ch_filename = fullfile(ch_rootPath,vt_chName{1});
+ch_rootPath	= 'C:\Users\sapmn3\Database';
+vt_chName   = {'mgnmPilot_Room2_101_1.eeg'};
+ch_filename = fullfile(ch_rootPath,vt_chName{1});
 vt_chName   = {ch_filename};
 
 %% Settings
@@ -17,9 +17,11 @@ vt_chEMG	= {'EMG1','EMG2'};
 vt_tfLims       = [0.3,25];
 vt_freqPassEEG  = [0.3,35];
 vt_freqPassEMG  = [10,100];
+vt_freqPassEOG  = [0.3,5];
 
 vt_freqStopEEG  = [0.1,40];
 vt_freqStopEMG  = [5,110];
+vt_freqStopEOG  = [0.1,6];
 
 vt_freqPassSO   = [0.3,2];
 vt_freqStopSO	= [0.1,4];
@@ -74,6 +76,7 @@ for ff = 1:numel(vt_chName)
     tic
     ob_filterEEG    = fn_designIIRfilter(st_dat.fsample,vt_freqPassEEG,vt_freqStopEEG);
     ob_filterEMG	= fn_designIIRfilter(st_dat.fsample,vt_freqPassEMG,vt_freqStopEMG);
+    ob_filterEOG	= fn_designIIRfilter(st_dat.fsample,vt_freqPassEOG,vt_freqStopEOG);
     ob_filterSO     = fn_designIIRfilter(st_dat.fsample,vt_freqPassSO,vt_freqStopSO);
     ob_filterSP     = fn_designIIRfilter(st_dat.fsample,vt_freqPassSp,vt_freqStopSp);
     toc
@@ -98,7 +101,7 @@ for ff = 1:numel(vt_chName)
     st_dat.trial{1}(vt_id,:)	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',...
                                 ob_filterEEG)'; 
     toc
-
+    
     % Filter EMG
     vt_id   = ismember(st_dat.label,vt_chEMG);
     fprintf('Filtering EMG: ')
@@ -118,6 +121,13 @@ for ff = 1:numel(vt_chName)
     end
     toc
 
+    vt_id   = ismember(st_dat.label,vt_chEOG);
+    
+    fprintf('Filtering EOG for movements: ')
+    tic
+    mx_chREM	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',ob_filterEOG)'; 
+    toc
+    
     %% Pattern selection
     st_spectrum.freq	= vt_freqTF;  
     st_spectrum.labels  = vt_chEEG;
@@ -138,8 +148,13 @@ for ff = 1:numel(vt_chName)
 
         fprintf('Computing TF for %s: ',st_spectrum.labels{ch})
         tic
-        [mx_TF,vt_T]	= fn_gaborwavelet(vt_signalCh,st_dat.fsample,vt_freqTF,...
-                        [],[],[],[],[],nm_stepSpectrum);
+        
+        [mx_TF,vt_T]	= fn_gaborwavelet(...
+                        vt_signalCh,...
+                        st_dat.fsample,....
+                        vt_freqTF,...
+                        [],[],[],[],[],...
+                        nm_stepSpectrum);
         toc
 
         mx_TF   = flipud(single(mx_TF));
@@ -221,12 +236,40 @@ for ff = 1:numel(vt_chName)
         clear st_Cnf vt_rmsFS vt_spindle
 
     end
-
+    
+    %% REM detection
+    fprintf('Detecting eye movements: ')
+    tic
+    st_Cnf              = struct;
+    st_Cnf.fsampling    = st_dat.fsample;
+    
+    [vt_remLoc,vt_semLoc]	= fn_detectsleepREM(mx_chREM,st_Cnf);
+    toc
+    
+    fprintf('Obtain EOG density: ')
+    tic
+    for tt = 2:numel(vt_timeStage)
+        
+        vt_id   = vt_timeStage(tt-1) <= st_dat.time{1} & ...
+                st_dat.time{1} <= vt_timeStage(tt);                            
+         
+        vt_id	= find(vt_id);
+        
+        st_patterns.stdREM(tt)	= sum(vt_id(1) < vt_remLoc &...
+                                vt_remLoc < vt_id(end));
+        st_patterns.stdSEM(tt)	= sum(vt_id(1) < vt_semLoc &...
+                                vt_semLoc < vt_id(end));
+                            
+    end
+    toc
+    
     %% EMG timeline
     
     fprintf('Obtain EMG std time-line: ')
     tic
     st_patterns.stdEMG	= zeros(size(vt_timeStage),'single');
+    st_patterns.stdREM	= zeros(size(vt_timeStage),'single');
+    st_patterns.stdSEM	= zeros(size(vt_timeStage),'single');
     
     for tt = 2:numel(vt_timeStage)
         
@@ -235,7 +278,15 @@ for ff = 1:numel(vt_chName)
                 
         st_patterns.stdEMG(tt)	= median(...
                                 abs(st_dat.trial{1}(vt_emgId,vt_id)));
+                            
+         
+        vt_id	= find(vt_id);
         
+        st_patterns.stdREM(tt)	= sum(vt_id(1) < vt_remLoc &...
+                                vt_remLoc < vt_id(end));
+        st_patterns.stdSEM(tt)	= sum(vt_id(1) < vt_semLoc &...
+                                vt_semLoc < vt_id(end));
+                            
     end
     toc
      
