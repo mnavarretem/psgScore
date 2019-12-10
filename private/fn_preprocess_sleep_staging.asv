@@ -62,6 +62,8 @@ for ff = 1:numel(vt_chName)
     st_cfg.dataset	= ch_filename;
 
     if isfield(st_ch,'REF')
+%         cfg.reref         = 'yes';
+%         cfg.refchannel    = {'A1' 'A2'};
         vt_chREF        = st_ch.REF;
         st_cfg.channel	= horzcat(vt_chEEG,vt_chEOG,vt_chEMG,vt_chREF);
     else        
@@ -171,7 +173,7 @@ for ff = 1:numel(vt_chName)
         fprintf('Computing TF for %s: ',st_spectrum.labels{ch})
         tic
         
-        [mx_TF,vt_T]	= fn_gaborwavelet(...
+        [mx_TF,vt_T,vt_f]	= fn_gaborwavelet(...
                         vt_signalCh,...
                         st_dat.fsample,....
                         vt_freqTF,...
@@ -315,7 +317,7 @@ for ff = 1:numel(vt_chName)
     save(fullfile(ch_rootPath,ch_dataName),'st_dat')
     toc
 
-    fprintf('Saving preprocessed data for %s: ',ch_spectrumName)
+    fprintf('Saving preprocessed data for %s: ',ch_savename)
     tic
     save(fullfile(ch_rootPath,ch_spectrumName),'st_patterns','st_spectrum')
     toc

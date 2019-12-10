@@ -108,7 +108,7 @@ end
 
 vt_signal   = vt_signal(:);
 vt_freqAxis	= vt_freqAxis(:)';
-vt_freqAxis = sort(vt_freqAxis,'descend'); %#ok<UDIM>
+vt_freqAxis = sort(vt_freqAxis,'ascend'); %#ok<UDIM>
 
 if mod(numel(vt_signal), 2) == 0
     vt_signal = vt_signal(1:end - 1);
