@@ -69,7 +69,13 @@ for ff = 1:numel(vt_chName)
     end
         
     st_dat	= ft_preprocessing(st_cfg);
-
+    
+    [~,vt_idDat]	= ismember(st_dat.label,st_cfg.channel);
+    [~,vt_idDat]    = sort(vt_idDat);
+    
+    st_dat.trial{1} = st_dat.trial{1}(vt_idDat,:);
+    st_dat.label	= st_dat.label(vt_idDat);
+    
     %% Re-reference (if needed)
     
     if isfield(st_ch,'REF')
