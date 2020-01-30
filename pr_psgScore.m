@@ -581,7 +581,8 @@ st_ctrCh.AxesCurH	= axes(...
                     'XLimMode','manual',...
                     'YLimMode','manual',...
                     'XLim',[0 1],...
-                    'YLim',[0 1]);
+                    'YLim',[0 1],...
+                    'ButtonDownFcn',@fn_cursorH_axisdrag);
                 
 st_ctrCh.AxesCurV	= axes(...
                     'Parent',st_panelMain.Ch,... 
@@ -594,7 +595,8 @@ st_ctrCh.AxesCurV	= axes(...
                     'XLimMode','manual',...
                     'YLimMode','manual',...
                     'XLim',[0 1],...
-                    'YLim',[0 1]);
+                    'YLim',[0 1],...
+                    'ButtonDownFcn',@fn_cursorV_axisdrag);
                 
 st_ctrCh.axesCh     = axes(...
                     'Parent',st_panelMain.Ch,... 
@@ -1962,8 +1964,39 @@ fn_control_extrapanel()
         set(st_ctrl.yCur,'String',ch_cursorsVlt);
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_cursorH_axisdrag(hObject,~)   
+        
+        if isempty(st_cursors.hLine_H1)
+            return
+        end
+                
+        nm_currentPoint	= get(hObject,'CurrentPoint');
+        nm_currentPoint	= nm_currentPoint(1);
+                
+        if nm_currentPoint < 0
+            nm_currentPoint = 0;
+        elseif nm_currentPoint > 1
+            nm_currentPoint = 1;
+        end
+        
+        % Set position of first cursor on click        
+        st_cursors.pos_H1 = nm_currentPoint;
+        set(st_cursors.hPatch_H1,...
+            'XData',[st_cursors.pos_H1 ...
+            st_cursors.pos_H1 - st_cursors.size_H1 ...
+            st_cursors.pos_H1 - st_cursors.size_H1 ...
+            st_cursors.pos_H1 + st_cursors.size_H1 ...
+            st_cursors.pos_H1 + st_cursors.size_H1]);
+        
+        fn_cursorH_process()  
+                
+        % Set second cursor for dragging    
+        st_cursors.current_H	= st_cursors.hPatch_H2;
+        set(st_hFigure.Main,'WindowButtonMotionFcn',@fn_cursorH_dragbeg)
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_cursorH_click(hObject,~)        
-        st_cursors.current_H = hObject;
+        st_cursors.current_H	= hObject;
         set(st_hFigure.Main,'WindowButtonMotionFcn',@fn_cursorH_dragbeg)
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -2032,6 +2065,38 @@ fn_control_extrapanel()
         set(st_cursors.hLine_H2(2),...
             'Xdata',[nm_XposCur2 nm_XposCur2],...
             'Ydata',get(st_ctrlTF.AxesTF,'YLim'));
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_cursorV_axisdrag(hObject,~)   
+        
+        if isempty(st_cursors.hLine_V1)
+            return
+        end
+                
+        nm_currentPoint	= get(hObject,'CurrentPoint');
+        nm_currentPoint  = nm_currentPoint(1,:);
+        nm_currentPoint  = nm_currentPoint(2);
+                
+        if nm_currentPoint < 0
+            nm_currentPoint = 0;
+        elseif nm_currentPoint > 1
+            nm_currentPoint = 1;
+        end
+        
+        % Set position of first cursor on click   
+        st_cursors.pos_V1 = nm_currentPoint;
+        set(st_cursors.hPatch_V1,...
+            'YData',[st_cursors.pos_V1 ...
+            st_cursors.pos_V1 - st_cursors.size_V1 ...
+            st_cursors.pos_V1 - st_cursors.size_V1 ...
+            st_cursors.pos_V1 + st_cursors.size_V1 ...
+            st_cursors.pos_V1 + st_cursors.size_V1]);
+        
+        fn_cursorV_process()          
+        
+        % Set second cursor for dragging    
+        st_cursors.current_V	= st_cursors.hPatch_V2;
+        set(st_hFigure.Main,'WindowButtonMotionFcn',@fn_cursorV_dragbeg)
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_cursorV_click(hObject,~)        
