@@ -76,6 +76,10 @@ if ~isfield(st_Cnf,'threshold')
     st_Cnf.threshold	= -65;
 end
 
+if ~isfield(st_Cnf,'peakthreshold')
+    st_Cnf.peakthreshold	= 75;
+end
+
 if ~isfield(st_Cnf,'minthresh')
     st_Cnf.minthresh	= erf(4.5/sqrt(2));
 end
@@ -95,6 +99,10 @@ end
 
 if isempty(st_Cnf.threshold)
     st_Cnf.threshold	= -65;
+end
+
+if isempty(st_Cnf.peakthreshold)
+    st_Cnf.peakthreshold	= 75;
 end
 
 if isempty(st_Cnf.minthresh)
@@ -218,7 +226,14 @@ for kk = 1:numel(vt_Lo)
     
     % Find previous and posterior zero-crossings
     nm_preCr    = vt_Cr(find(vt_Cr < nm_curLo,1,'last'));
-    nm_posCr    = vt_Cr(find(vt_Cr > nm_curLo,1,'first'));
+    nm_posCr    = vt_Cr(find(vt_Cr > nm_curLo,2,'first'));
+    
+    if isempty(nm_preCr) || isempty(nm_posCr)
+        continue
+    end
+    
+    nm_posCrHi	= nm_posCr(end);
+    nm_posCr    = nm_posCr(1); 
     
     % If minimum position is not bounded by zero-crossings, then skip current 
     % wave
@@ -244,12 +259,28 @@ for kk = 1:numel(vt_Lo)
     
     % If multiple negative peaks, then select the minimum peak
     vt_curLo    = vt_Lo(vt_Lo > nm_preCr & vt_Lo < nm_posCr);
-    [~,nm_idx]  = min(vt_eegSignal(vt_curLo));
+    [nm_neg,nm_idx]  = min(vt_eegSignal(vt_curLo));
     nm_curLo    = vt_curLo(nm_idx);
     
     % FUTURE UPDATE: Include the possibility of hard-detection where the
     % amplitude and  duration of positive waves are also taken in account
     % (Valderrama et al 2012)
+    vt_curHi    = vt_Hi(vt_Hi > nm_posCr & vt_Hi < nm_posCrHi);
+    
+    if isempty(vt_curHi)        
+        nm_pos	= 0;
+    else
+        nm_pos	= max(vt_eegSignal(vt_curHi));
+    end
+    
+    
+    % If peak-to-peak amplitude is lower than peakthreshold, then skip
+    % current wave
+    nm_peak2peak	= nm_pos - nm_neg;
+    
+    if nm_peak2peak < st_Cnf.peakthreshold
+        continue
+    end
     
     % Save current value
     vt_soLocations(kk)	= nm_curLo;

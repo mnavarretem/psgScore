@@ -1075,7 +1075,7 @@ fn_control_extrapanel()
         st_hypBulk.epoch    = st_hypBulk.epoch(vt_idList);
         st_file.hypnoList   = st_file.hypnoList(vt_idList);
         
-        vt_numEpoch	= cellfun(@numel,st_hypBulk.dat); 
+        vt_numEpoch	= cellfun(@(x) size(x,2),st_hypBulk.dat); 
         vt_idList   = vt_numEpoch == vt_numEpoch(1);
         
         st_hypBulk.dat      = st_hypBulk.dat(vt_idList);
@@ -1084,8 +1084,8 @@ fn_control_extrapanel()
         st_hypBulk.epoch    = st_hypBulk.epoch(vt_idList);
         st_file.hypnoList   = st_file.hypnoList(vt_idList);
         
-        st_hyp.dat      = cell2mat(st_hypBulk.dat);
-        st_hyp.arousals	= vertcat(st_hypBulk.arousals{:});
+        st_hyp.dat      = vertcat(st_hyp.dat,cell2mat(st_hypBulk.dat));
+        st_hyp.arousals	= vertcat(st_hyp.arousals,st_hypBulk.arousals{:});
         st_hyp.timeEpoch= st_hypBulk.timeEpoch{1};
         st_hyp.epoch    = st_hypBulk.epoch{1};
         st_hyp.id       = 1;
@@ -1695,19 +1695,20 @@ fn_control_extrapanel()
                                         'LineWidth',nm_lineWidth);
             clear vt_xStairs vt_yStairs
                     
-            
-            if ~isempty(st_hyp.arousals{kk})
-                st_hLines.hypLines(kk,2)	= line(...
-                                            'Xdata',st_hyp.arousals{kk}(:,1),...
-                                            'Ydata',7 * ...
-                                                    ones(1,size(...
-                                                    st_hyp.arousals{kk},1)),...
-                                            'Parent',st_ctrHyp.AxesHyp,...
-                                            'LineStyle','none',...
-                                            'Marker','s',...
-                                            'MarkerFaceColor',vt_fillColor,...
-                                            'MarkerEdgeColor',vt_artfColor,...
-                                            'MarkerSize',3);
+            if kk < numel(st_hyp.arousals)                
+                if ~isempty(st_hyp.arousals{kk})
+                    st_hLines.hypLines(kk,2)	= line(...
+                                                'Xdata',st_hyp.arousals{kk}(:,1),...
+                                                'Ydata',7 * ...
+                                                        ones(1,size(...
+                                                        st_hyp.arousals{kk},1)),...
+                                                'Parent',st_ctrHyp.AxesHyp,...
+                                                'LineStyle','none',...
+                                                'Marker','s',...
+                                                'MarkerFaceColor',vt_fillColor,...
+                                                'MarkerEdgeColor',vt_artfColor,...
+                                                'MarkerSize',3);
+                end
             end
         end
         pause(0.001)
@@ -2608,10 +2609,10 @@ fn_control_extrapanel()
         if ~isfield(st_hyp,'dat')
             return
         end
-        
+        vt_hypnoList= get(hObject,'String'); 
         st_hyp.id	= get(hObject,'Value');
         
-        if st_hyp.id > size(st_hyp.dat,1)
+        if strcmpi(vt_hypnoList{st_hyp.id},'new')
             fn_control_hypnoaddnew()
         end
         
@@ -2623,7 +2624,6 @@ fn_control_extrapanel()
         st_disp.backHypno	= ~logical(get(hObject,'Value'));
         fn_display_drawhypnogram()
     end
-
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_hypnoremove(~,~)
         
@@ -2642,9 +2642,9 @@ fn_control_extrapanel()
         st_hyp.dat(st_hyp.id,:)         = [];
         st_hyp.arousals(st_hyp.id,:)	= [];
         
-        if st_hyp.id > size(st_hyp.dat,1) && size(st_hyp.dat,1) > 1
+        if st_hyp.id > size(st_hyp.dat,1) && ~isempty(st_hyp.dat)
             st_hyp.id = size(st_hyp.dat,1);
-        elseif  size(st_hyp.dat,1) < 1
+        elseif  isempty(st_hyp.dat)
             st_hyp.id	= 1;
             st_hyp.dat(st_hyp.id,:)     = int8(-ones(size(st_hyp.timeEpoch))); 
             st_hyp.arousals(st_hyp.id,:)= {[]};
@@ -2661,7 +2661,24 @@ fn_control_extrapanel()
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_hypnoaddnew()
         
-        st_hyp.dat(st_hyp.id,:)	= int8(-ones(size(st_hyp.timeEpoch)));
+        ch_answer	= questdlg(...
+                    'Would you like to add a new hypnogram?', ...
+                    'Add hypnogram', ...
+                    'Yes','No','No');
+        
+        switch ch_answer
+            case 'Yes'
+                % do nothing
+            case 'No'                
+                if st_hyp.id > size(st_hyp.dat,1)
+                    st_hyp.id = size(st_hyp.dat,1);
+                    set(st_ctrHyp.SelHyp,'Value',st_hyp.id)
+                end                
+                return
+        end
+        
+        st_hyp.dat(st_hyp.id,:)     = int8(-ones(size(st_hyp.timeEpoch)));
+        st_hyp.arousals{st_hyp.id,:}= []; 
         
         vt_stringCnt	=  num2cell(num2str((1:size(st_hyp.dat,1))'));
         vt_stringCnt    =  vertcat(vt_stringCnt,{'new'});

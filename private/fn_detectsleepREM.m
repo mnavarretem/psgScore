@@ -23,13 +23,12 @@ function [vt_remLoc,vt_semLoc] = fn_detectsleepREM(mx_eogSignal,st_Cnf)
 %
 %   - st_Cnf.toFilter:	Filter input in REM band (default = false)
 %
-%   See alREM FINDEXTREMA (from Siyi Deng).
 
 %% BSD license;
 % Copyright (c) 2017, Miguel Navarrete;
 % All rights reserved.
 % 
-% Redistribution and use in REMurce and binary forms, with or without 
+% Redistribution and use in source and binary forms, with or without 
 % modification, are permitted provided that the following conditions are 
 % met:
 % 
@@ -79,7 +78,7 @@ if ~isfield(st_Cnf,'windowDeflection')
 end
 
 if ~isfield(st_Cnf,'timeDeflection')
-    st_Cnf.tDeflect	= round(0.7*st_Cnf.fsampling);
+    st_Cnf.tDeflect	= round(0.5*st_Cnf.fsampling);
 end
 
 if ~isfield(st_Cnf,'threshold')
@@ -132,11 +131,13 @@ vt_eoi	= nm_minThr < vt_values & vt_values < nm_maxThr;
 vt_eoi	= vt_Hi(vt_eoi);
 
 %% REM detection features
-vt_featEidx	= nan(size(vt_eoi));
-vt_featEval	= nan(size(vt_eoi));
-vt_featMax	= nan(size(vt_eoi));
-vt_featCorr	= nan(size(vt_eoi));
-vt_featDef	= nan(size(vt_eoi));
+vt_featEidx     = nan(size(vt_eoi));
+vt_featEval     = nan(size(vt_eoi));
+vt_featMaxVal	= nan(size(vt_eoi));
+vt_featCorr     = nan(size(vt_eoi));
+vt_featMaxRatio	= nan(size(vt_eoi));
+vt_featSlope	= nan(size(vt_eoi));
+vt_featDeflect	= nan(size(vt_eoi));
 
 for kk = 1:numel(vt_eoi)
     
@@ -169,14 +170,48 @@ for kk = 1:numel(vt_eoi)
         continue
     end
     
-    vt_ceoi         = vt_chProduct(nm_eventBeg:nm_eventEnd);
-    [nm_val,nm_idt]	= max(vt_ceoi);
-    nm_ceoiId       = nm_idt + nm_eventBeg - 1;
+    vt_cid      = nm_eventBeg:nm_eventEnd;
+    vt_ceoi  	= vt_chProduct(vt_cid);
+    
+    [nm_val,nm_sTop]= max(vt_ceoi);
+    [~,vt_cLo]      = findextrema(vt_ceoi);
+        
+    if isempty(vt_cLo)
+        vt_cLo	= 1;
+    end
+    
+    nm_minStep	= nm_val*2/3;
+    vt_cLo      = vt_cLo(nm_val-vt_ceoi(vt_cLo) > nm_minStep);
+    
+    if isempty(vt_cLo)
+        vt_cLo	= 1;
+    end
+    
+    nm_sBeg         = vt_cLo(nm_sTop > vt_cLo);
+    
+    if isempty(nm_sBeg)
+        nm_sBeg	= 1;
+    end
+    
+    nm_sBeg         = nm_sBeg(end);
+    
+    vt_slope        = diff(vt_ceoi/max(vt_ceoi));
+    
+    vt_maxSlopeIdx	= findextrema(vt_slope);
+    vt_maxSlopeIdx  = vt_maxSlopeIdx(...
+                    vt_maxSlopeIdx > nm_sBeg & vt_maxSlopeIdx < nm_sTop);
+                
+    [nm_maxSl,nm_id]= max(vt_slope(vt_maxSlopeIdx));
+    nm_idSlope      = vt_maxSlopeIdx(nm_id);
+                
+    mx_cEM          = mx_eogSignal(vt_cid,:);    
+    
+    nm_ceoiId       = nm_sTop + nm_eventBeg - 1;
     
     if any(ismember(vt_featEidx,nm_ceoiId))
         continue;
     end
-    
+        
     vt_idi  = -st_Cnf.window:st_Cnf.window;
     vt_id   = vt_idi + nm_ceoiId;
     
@@ -186,26 +221,39 @@ for kk = 1:numel(vt_eoi)
     if mx_corr(2) >0
         continue
     end
-                    
-    vt_featEidx(kk)	= nm_ceoiId;
-    vt_featEval(kk)	= nm_val;
-    vt_featMax(kk)	= max(abs(mx_ceog(:)));
-    vt_featCorr(kk)	= mx_corr(2);
-    vt_featDef(kk)	= nm_idt;
+%     disp(nm_sBeg)
+%     plot(vt_ceoi)
+    vt_featEidx(kk)     = nm_ceoiId;
+    vt_featEval(kk)     = nm_val;
+    vt_featMaxVal(kk)	= max(abs(mx_ceog(:)));
+    vt_featCorr(kk)     = mx_corr(2);
+    vt_featMaxRatio(kk)	= nm_sTop/numel(vt_cid);
+    vt_featSlope(kk)    = nm_maxSl;
+    vt_featDeflect(kk)	= nm_sTop-nm_sBeg;
     
 end
 
-vt_isEOI	= ~isnan(vt_featEidx) & vt_featMax < st_Cnf.maxthresh;
+vt_isEOI	= ~isnan(vt_featEidx) & vt_featMaxVal < st_Cnf.maxthresh;
 
-vt_featEidx	= vt_featEidx(vt_isEOI);
-vt_featEval	= vt_featEval(vt_isEOI);
-vt_featMax	= vt_featMax(vt_isEOI);
-vt_featCorr	= vt_featCorr(vt_isEOI);
-vt_featDef	= vt_featDef(vt_isEOI);
+vt_featEidx     = vt_featEidx(vt_isEOI);
+vt_featEval     = vt_featEval(vt_isEOI);
+vt_featMaxVal	= vt_featMaxVal(vt_isEOI);
+vt_featCorr     = vt_featCorr(vt_isEOI);
+vt_featMaxRatio	= vt_featMaxRatio(vt_isEOI);
+vt_featSlope	= vt_featSlope(vt_isEOI);
+vt_featDeflect	= vt_featDeflect(vt_isEOI);
     
+vt_idCorrelated	= abs(vt_featCorr) > 0.25 & vt_featMaxVal > sqrt(nm_minThr);
+vt_idDeflect	= vt_featDeflect > st_Cnf.tDeflect;                
+vt_idSlope      = vt_featSlope < prctile(vt_featSlope,25);
 
-vt_remLoc	= vt_featEidx(vt_featDef <= st_Cnf.tDeflect);
-vt_semLoc	= vt_featEidx(vt_featDef > st_Cnf.tDeflect);
+vt_isREM	= ~vt_idDeflect & ~vt_idSlope;
+vt_isSEM    = ~vt_isREM & vt_idCorrelated;
+vt_isREM    = vt_isREM & vt_idCorrelated;
+
+vt_remLoc	= vt_featEidx(vt_isREM);
+vt_semLoc	= vt_featEidx(vt_isSEM);
+vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 
 %% Plot REM events
 % for kk = 1:numel(vt_remLoc)
@@ -215,6 +263,8 @@ vt_semLoc	= vt_featEidx(vt_featDef > st_Cnf.tDeflect);
 %     
 %     mx_ceog	= mx_eogSignal(vt_id,:);
 %     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     
+%     pause
 % end
 
 %% Plot SEM events
@@ -229,4 +279,21 @@ vt_semLoc	= vt_featEidx(vt_featDef > st_Cnf.tDeflect);
 %     end
 %     mx_ceog	= mx_eogSignal(vt_id,:);
 %     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     pause
+% end
+
+
+%% Plot non EM events
+% for kk = 1:numel(vt_nemLoc)
+%     
+%     vt_idi  = -2*st_Cnf.window:2*st_Cnf.window;
+%     vt_id   = vt_idi + vt_nemLoc(kk);
+%     
+%     
+%     if any(vt_id < 1) || any(vt_id > length(mx_eogSignal))
+%         continue
+%     end
+%     mx_ceog	= mx_eogSignal(vt_id,:);
+%     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     pause
 % end
