@@ -1695,7 +1695,7 @@ fn_control_extrapanel()
                                         'LineWidth',nm_lineWidth);
             clear vt_xStairs vt_yStairs
                     
-            if kk < numel(st_hyp.arousals)                
+            if kk <= numel(st_hyp.arousals)                
                 if ~isempty(st_hyp.arousals{kk})
                     st_hLines.hypLines(kk,2)	= line(...
                                                 'Xdata',st_hyp.arousals{kk}(:,1),...
