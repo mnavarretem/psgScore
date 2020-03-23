@@ -2,8 +2,9 @@
 
 %% Settings
 
-ch_rootPath	= 'C:\Users\sapmn3\Database\remStimulation\study-rawFiles';
-ch_savePath	= 'C:\Users\sapmn3\Database\remStimulation\study-hypnoFiles';
+ch_rootPath	= 'D:\Database\remStimulation\study-rawFiles';
+ch_savePath	= 'D:\Database\remStimulation\study-hypnoFiles';
+nm_skipDone = true;
 
 %% Read folder
 
@@ -17,6 +18,24 @@ vt_id       = cellfun(@(x) strfind(x,'.eeg'),vt_eegFiles,...
 vt_id       = ~cellfun(@isempty,vt_id);
 vt_eegFiles = vt_eegFiles(vt_id);
 
+%% Skip computed 
+if nm_skipDone
+    vt_matFiles = dir(ch_savePath);
+    vt_matFiles = extractfield(vt_matFiles,'name');    
+    vt_matFiles = vt_matFiles(:);
+    vt_matFiles = vt_matFiles(3:end);
+
+    vt_id       = cellfun(@(x) strfind(x,'.mat'),vt_matFiles,...
+                'UniformOutput',false);
+    vt_id       = ~cellfun(@isempty,vt_id);
+    vt_matFiles = vt_matFiles(vt_id);
+    
+    [~,vt_rawFiles] = cellfun(@fileparts,vt_eegFiles,'UniformOutput',false);
+    [~,vt_matFiles] = cellfun(@fileparts,vt_matFiles,'UniformOutput',false);
+    
+    vt_isDone   = ismember(vt_rawFiles,vt_matFiles);
+    vt_eegFiles	= vt_eegFiles(~vt_isDone);
+end
 %% Read File
 
 % vt_eegFiles = {'part2_sleep.eeg'};

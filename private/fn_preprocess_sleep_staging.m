@@ -155,6 +155,58 @@ for ff = 1:numel(vt_chName)
     mx_chREM	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',ob_filterEOG)'; 
     toc
     
+    %% REM detection
+    fprintf('Detecting eye movements: ')
+    tic
+    st_Cnf              = struct;
+    st_Cnf.fsampling    = st_dat.fsample;
+    
+    [vt_remLoc,vt_semLoc]	= fn_detectsleepREM(mx_chREM,st_Cnf);
+    toc
+    
+    fprintf('Obtain EOG density: ')
+    tic
+    
+    st_patterns.EM      = zeros(2,numel(vt_timeStage),'single');
+    st_patterns.EyeEvents.SEM	= vt_semLoc/st_dat.fsample;
+    st_patterns.EyeEvents.REM	= vt_remLoc/st_dat.fsample;
+    
+    for tt = 2:numel(vt_timeStage)
+        
+        vt_id   = find(vt_timeStage(tt-1) <= st_dat.time{1} & ...
+                st_dat.time{1} <= vt_timeStage(tt));                            
+                 
+        st_patterns.EM(1,tt)	= sum(vt_id(1) < vt_remLoc &...
+                                vt_remLoc < vt_id(end));
+        st_patterns.EM(2,tt)	= sum(vt_id(1) < vt_semLoc &...
+                                vt_semLoc < vt_id(end));
+                            
+    end
+    toc
+    
+    %% EMG timeline
+    
+    fprintf('Obtain EMG std time-line: ')
+    tic
+    st_patterns.rmsEMG	= single(zeros(...
+                        numel(vt_emgId),numel(vt_timeStage)));
+    
+    for tt = 2:numel(vt_timeStage)
+        
+        vt_id   = vt_timeStage(tt-1) <= st_dat.time{1} & ...
+                st_dat.time{1} <= vt_timeStage(tt);
+        
+        for kk = 1:numel(vt_emgId)
+
+            vt_sgm	= abs(st_dat.trial{1}(vt_emgId(kk),vt_id));
+            vt_hi   = findextrema(vt_sgm);
+            vt_sgm	= vt_sgm(vt_hi);
+            st_patterns.rmsEMG(kk,tt)	= single(median(vt_sgm));   
+        end
+                            
+    end
+    toc
+            
     %% Pattern selection
     st_spectrum.freq	= vt_freqTF;  
     st_spectrum.labels  = vt_chEEG;
@@ -234,7 +286,7 @@ for ff = 1:numel(vt_chName)
 
         st_patterns.arousal{ch}	= fn_detectsleeparousal(mx_TF,st_Cnf);    
         toc               
-                
+         
         %% Obtain frequency band time-line
                 
         fprintf('Obtain frequency band time-line for %s: ',st_spectrum.labels{ch})
@@ -309,56 +361,6 @@ for ff = 1:numel(vt_chName)
 
     end
     
-    %% REM detection
-    fprintf('Detecting eye movements: ')
-    tic
-    st_Cnf              = struct;
-    st_Cnf.fsampling    = st_dat.fsample;
-    
-    [vt_remLoc,vt_semLoc]	= fn_detectsleepREM(mx_chREM,st_Cnf);
-    toc
-    
-    fprintf('Obtain EOG density: ')
-    tic
-    
-    st_patterns.EM      = zeros(2,numel(vt_timeStage),'single');
-    
-    for tt = 2:numel(vt_timeStage)
-        
-        vt_id   = find(vt_timeStage(tt-1) <= st_dat.time{1} & ...
-                st_dat.time{1} <= vt_timeStage(tt));                            
-                 
-        st_patterns.EM(1,tt)	= sum(vt_id(1) < vt_remLoc &...
-                                vt_remLoc < vt_id(end));
-        st_patterns.EM(2,tt)	= sum(vt_id(1) < vt_semLoc &...
-                                vt_semLoc < vt_id(end));
-                            
-    end
-    toc
-    
-    %% EMG timeline
-    
-    fprintf('Obtain EMG std time-line: ')
-    tic
-    st_patterns.rmsEMG	= single(zeros(...
-                        numel(vt_emgId),numel(vt_timeStage)));
-    
-    for tt = 2:numel(vt_timeStage)
-        
-        vt_id   = vt_timeStage(tt-1) <= st_dat.time{1} & ...
-                st_dat.time{1} <= vt_timeStage(tt);
-        
-        for kk = 1:numel(vt_emgId)
-
-            vt_sgm	= abs(st_dat.trial{1}(vt_emgId(kk),vt_id));
-            vt_hi   = findextrema(vt_sgm);
-            vt_sgm	= vt_sgm(vt_hi);
-            st_patterns.rmsEMG(kk,tt)	= single(median(vt_sgm));   
-        end
-                            
-    end
-    toc
-     
     %% Save signal data
 
     [ch_rootPath,ch_dataName] = fileparts(ch_savename);

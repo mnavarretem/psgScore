@@ -201,12 +201,15 @@ for kk = 1:numel(vt_eoi)
     vt_maxSlopeIdx  = vt_maxSlopeIdx(...
                     vt_maxSlopeIdx > nm_sBeg & vt_maxSlopeIdx < nm_sTop);
                 
-    [nm_maxSl,nm_id]= max(vt_slope(vt_maxSlopeIdx));
-    nm_idSlope      = vt_maxSlopeIdx(nm_id);
-                
-    mx_cEM          = mx_eogSignal(vt_cid,:);    
+    if isempty(vt_maxSlopeIdx)
+        continue
+    end
     
+    [nm_maxSl,nm_id]= max(vt_slope(vt_maxSlopeIdx));
     nm_ceoiId       = nm_sTop + nm_eventBeg - 1;
+    
+    nm_idSlope      = vt_maxSlopeIdx(nm_id);
+    mx_cEM          = mx_eogSignal(vt_cid,:);    
     
     if any(ismember(vt_featEidx,nm_ceoiId))
         continue;
