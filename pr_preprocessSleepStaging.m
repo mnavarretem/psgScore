@@ -2,8 +2,9 @@
 
 %% Settings
 
-ch_rootPath	= 'D:\Database\remStimulation\study-rawFiles';
-ch_savePath	= 'D:\Database\remStimulation\study-hypnoFiles';
+ch_rootPath	= 'C:\Users\sapmn3\Database\remStimulation\study-rawFiles';
+ch_savePath	= 'C:\Users\sapmn3\Database\remStimulation\study-hypnoFiles';
+
 nm_skipDone = true;
 
 %% Read folder
@@ -36,9 +37,11 @@ if nm_skipDone
     vt_isDone   = ismember(vt_rawFiles,vt_matFiles);
     vt_eegFiles	= vt_eegFiles(~vt_isDone);
 end
+
 %% Read File
 
-% vt_eegFiles = {'part2_sleep.eeg'};
+% vt_eegFiles   = {'overnight_pilot01.eeg'};            
+% vt_saveFiles	= {'overnight_pilot01.mat'};
 
 %% Process
 
@@ -47,10 +50,10 @@ st_ch.EOG	= {'REOG','LEOG'};
 st_ch.EMG	= {'REMG','LEMG'};
 st_ch.REF	= {'A1','A2'};
 
-% st_ch.EEG	= {'Fz','Cz','Oz'};
-% st_ch.EOG	= {'R_EOG_DOWN','L_EOG_UP'};
+% st_ch.EEG	= {'F3','F4','C3','C4','O1','O2'};
+% st_ch.EOG	= {'R_EOG','L_EOG'};
 % st_ch.EMG	= {'R_EMG','L_EMG'};
-% st_ch.REF	= {'TP9','TP10'};
+% st_ch.REF	= {'A1','A2'};
 
 for rr = 1:numel(vt_eegFiles) % loop for recordings    
     %% Select file and stim condition
@@ -61,6 +64,9 @@ for rr = 1:numel(vt_eegFiles) % loop for recordings
     
     ch_filename = fullfile(ch_rootPath,ch_filename);
     ch_savename = fullfile(ch_savePath,ch_saveFile);
+    
+%     ch_filename = fullfile(ch_rootPath,vt_eegFiles{rr});
+%     ch_savename = fullfile(ch_savePath,vt_saveFiles{rr});
     
     fprintf('\n::::: Starting new file ::::\n')
     fprintf('Selected file: %s [%i/%i] \n',ch_filename,rr,numel(vt_eegFiles))

@@ -400,6 +400,7 @@ st_ctrl.yCurLab     = uicontrol(st_panelMain.Ctrl,...
                     'BackgroundColor',st_figSet.BackColor,...
                     'HorizontalAlignment','center',...
                     'FontSize',st_figSet.TextCtrlSize,...
+                    'ForegroundColor',[0.3,0.3,1],...
                     'String','y(uV)',...
                     'Enable','inactive',...
                     'Units','normalized',...
@@ -419,6 +420,17 @@ st_ctrl.yCur        = uicontrol(st_panelMain.Ctrl,...
             
 % Analysis Buttons ........................................................
 
+st_ctrlScore.Predict	= uicontrol(st_panelMain.Ctrl,...
+                'Style','pushbutton',...
+                'BackgroundColor',st_figSet.BackColor,...
+                'HorizontalAlignment','center',...
+                'FontSize',st_figSet.TextCtrlSize,...
+                'String','Predict',...
+                'Units','normalized',...
+                'Position',[.66 .2 .05 .6],...
+                'KeyPressFcn',@fn_control_key_release,...
+                'CallBack',@fn_control_scorepredict);
+            
 st_ctrlScore.OkScBut	= uicontrol(st_panelMain.Ctrl,...
                 'Style','togglebutton',...
                 'BackgroundColor',st_figSet.BackColor,...
@@ -571,6 +583,16 @@ st_ctrHyp.RemoveHyp	= uicontrol(st_panelMain.Hyp,...
                     'Units','normalized',...
                     'Position',[0.96 .20 .04 .2],...
                     'CallBack',@fn_control_hypnoremove); 
+                
+st_ctrHyp.VoteHyp	= uicontrol(st_panelMain.Hyp,...
+                    'Style','pushbutton',...
+                    'BackgroundColor',st_figSet.AxisColor,...
+                    'HorizontalAlignment','left',...
+                    'FontSize',st_figSet.TextCtrlSize,...
+                    'String','VoteHyp',...
+                    'Units','normalized',...
+                    'Position',[0.96 .0 .04 .2],...
+                    'CallBack',@fn_control_hypnovote); 
             
 st_ctrHyp.AxesPatch	= axes(...
                     'Parent',st_panelMain.Hyp,... 
@@ -1153,13 +1175,13 @@ fn_control_extrapanel()
         vt_idList           = ~ismember(st_file.hypnoList,st_file.hypnoFile);
         st_file.hypnoList   = st_file.hypnoList(vt_idList);
                         
-        nm_resp	= exist(fullfile(st_file.path,st_file.hypnoFile),'file');
-                
-        if logical(nm_resp)
-            st_file.hypnoList   = horzcat({st_file.hypnoFile},st_file.hypnoList);
-        end
+%         nm_resp	= exist(fullfile(st_file.path,st_file.hypnoFile),'file');
+%                 
+%         if logical(nm_resp)
+%             st_file.hypnoList   = horzcat({st_file.hypnoFile},st_file.hypnoList);
+%         end
         
-        for ff = 1:numel(vt_idList)
+        for ff = 1:numel(st_file.hypnoList)
                         
             st_hypLst	= load(fullfile(st_file.path,st_file.hypnoList{ff}));
                     
@@ -1238,6 +1260,11 @@ fn_control_extrapanel()
                 st_spectrum	= load(fullfile(ch_filePath,ch_fileName),...
                             'st_spectrum');
             catch
+                st_disp.curCh   = '';
+                set(st_ctrlExtra.chanPop,'Value',1)
+                set(st_ctrlTF.chanPop,'Value',1)
+                set(st_ctrlExtra.chanPop,'String',' ')
+                set(st_ctrlTF.chanPop,'String',' ')
                 st_longTerm     = struct;
                 st_spectrum.TF	= struct;
                 return
@@ -1248,8 +1275,8 @@ fn_control_extrapanel()
         st_spectrum	= st_spectrum.st_spectrum;                       
         
         
-        nm_id              = get(st_ctrlTF.chanPop,'Value');
-        st_spectrum.curCh	= st_chann.EEGlabels{nm_id};
+        nm_id           = get(st_ctrlTF.chanPop,'Value');
+        st_disp.curCh	= st_chann.EEGlabels{nm_id};
         
         set(st_ctrlExtra.chanPop,'Value',nm_id)
         set(st_ctrlTF.sliderV,'Enable','on')
@@ -1467,15 +1494,17 @@ fn_control_extrapanel()
             delete(st_hLines.chText)
         end
                 
-        nm_idCh = find(ismember(st_dat.label,st_spectrum.curCh));
-        nm_cnt  = find(vt_curIdCh == nm_idCh);
-        nm_xPos	= double(st_dat.time{1}(st_disp.posBeg));
-        nm_yPos = st_disp.ampOffset(nm_curShowCh+1-nm_cnt);
-        
-        st_hLines.chText	= text(st_ctrCh.AxesGrid,...
-                            nm_xPos,nm_yPos,'        ',...
-                            'BackgroundColor',st_figSet.SelectCHColor,...
-                            'HorizontalAlignment','right');
+        nm_idCh = find(ismember(st_dat.label,st_disp.curCh));
+        if ~isempty(nm_idCh)
+            nm_cnt  = find(vt_curIdCh == nm_idCh);
+            nm_xPos	= double(st_dat.time{1}(st_disp.posBeg));
+            nm_yPos = st_disp.ampOffset(nm_curShowCh+1-nm_cnt);
+
+            st_hLines.chText	= text(st_ctrCh.AxesGrid,...
+                                nm_xPos,nm_yPos,'        ',...
+                                'BackgroundColor',st_figSet.SelectCHColor,...
+                                'HorizontalAlignment','right');
+        end
         
         % Look for arousals
         if ~isfield(st_hyp,'dat')
@@ -1486,6 +1515,9 @@ fn_control_extrapanel()
             return
         end
         
+        if st_hyp.id > numel(st_hyp.arousals)
+            return
+        end
         % Select arousals within time limits
         vt_evId	= st_hyp.arousals{st_hyp.id} >= ...
                 st_dat.time{1}(st_disp.posBeg) & ...
@@ -1533,7 +1565,7 @@ fn_control_extrapanel()
                         
         % Identify selected channel 
         vt_idView	= ismember(st_ctrlSet.EventCol,'Display');
-        nm_idCh     = find(ismember(st_dat.label,st_spectrum.curCh));
+        nm_idCh     = find(ismember(st_dat.label,st_disp.curCh));
         nm_cnt      = find(vt_curIdCh == nm_idCh);
         nm_yPos     = st_disp.ampOffset(nm_curShowCh+1-nm_cnt) +...
                     st_disp.offsetValue/2;
@@ -1885,7 +1917,7 @@ fn_control_extrapanel()
             return
         end
         
-        nm_chId	= find(ismember(st_spectrum.labels,st_spectrum.curCh));
+        nm_chId	= find(ismember(st_spectrum.labels,st_disp.curCh));
         
         if isempty(nm_chId)
             return
@@ -1959,9 +1991,12 @@ fn_control_extrapanel()
         cla(st_ctrHyp.AxesHyp)
         st_disp.backHypno	= get(st_ctrHyp.HideHyp,'value');
         st_hLines.hypLines  = nan(1,2);
+        vt_idPlots  = 1:size(st_hyp.dat,1);
+        vt_idPlots(st_hyp.id)	= [];
+        vt_idPlots  = [vt_idPlots,st_hyp.id];
         
         % Plot data
-        for kk = 1:size(st_hyp.dat,1)
+        for kk = vt_idPlots
             if kk == st_hyp.id
                 nm_lineWidth = 1.5;
                 vt_lineColor = [0.929,0.694,0.125];
@@ -2021,6 +2056,11 @@ fn_control_extrapanel()
                 delete(st_hLines.LTLines(kk))
             end
         end
+        
+        if ~isfield(st_spectrum,'labels')
+            return
+        end
+        
         % Get Frequency band color
         vt_eventLabel	= st_ctrlSet.eventSet(:,1);
         vt_eventColor	= st_ctrlSet.eventSet(:,4);
@@ -2030,7 +2070,7 @@ fn_control_extrapanel()
         vt_color    = hex2rgb(vt_color);
         
         % Get longterm
-        vt_idCh	= ismember(st_spectrum.labels,st_spectrum.curCh);
+        vt_idCh	= ismember(st_spectrum.labels,st_disp.curCh);
         st_hLines.LTLines = nan(9,1);
         
         nm_l	= 1;
@@ -2305,7 +2345,7 @@ fn_control_extrapanel()
             return
         end
         
-        vt_chId	= ismember(st_dat.label,st_spectrum.curCh);
+        vt_chId	= ismember(st_dat.label,st_disp.curCh);
         
         if isempty(vt_chId)
             return
@@ -2334,7 +2374,7 @@ fn_control_extrapanel()
         plot(vt_f,10*log10(vt_pxx))
         xlabel('Frequency (Hz)')
         ylabel('Magnitude (dB)')
-        title(sprintf('PSD for %s between cursors',st_spectrum.curCh))
+        title(sprintf('PSD for %s between cursors',st_disp.curCh))
         grid
     end
     
@@ -2725,9 +2765,8 @@ fn_control_extrapanel()
             nm_curEpoch	= discretize(vt_pos(1),st_hyp.timeEpoch);
         end       
         
-        st_disp.curTime	= st_hyp.timeEpoch(nm_curEpoch);
+        fn_control_gotoepoch(nm_curEpoch)
         
-        fn_display_process()
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_inputdlg(hObject,~)
@@ -2769,11 +2808,9 @@ fn_control_extrapanel()
                     nm_answer	= numel(st_hyp.timeEpoch);
                 elseif nm_answer < 1
                     nm_answer	= 1;
-                end       
-
-                st_disp.curTime	= st_hyp.timeEpoch(nm_answer);
+                end 
                 
-                fn_display_process()
+                fn_control_gotoepoch(nm_answer)
                 
             case st_ctrl.yCur
                 if ~isfield(st_cursors,'last_V')
@@ -2919,7 +2956,7 @@ fn_control_extrapanel()
     function fn_control_chView(hObject,~)
         
         nm_id              = get(hObject,'Value');
-        st_spectrum.curCh	= st_chann.EEGlabels{nm_id};
+        st_disp.curCh	= st_chann.EEGlabels{nm_id};
         
         set(st_ctrlTF.chanPop,'Value',nm_id);
         set(st_ctrlExtra.chanPop,'Value',nm_id);
@@ -2976,6 +3013,86 @@ fn_control_extrapanel()
         catch
             return
         end
+    end
+
+
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_control_scorepredict(~,~)
+        
+        % Check inputs
+        if ~isfield(st_dat,'trial')
+            return            
+        end
+        
+        if ~isfield(st_spectrum,'labels')
+            warndlg({'Hypnogram prediction is not possible without';...
+                'the preprocessed psg-Extras file'},...
+                'Prediction warning'); 
+            return            
+        end
+        
+        vt_prompt	= {'Frontal ch:','Central ch:','Occipital ch:'};
+        ch_title	= 'Prediction Inputa';
+        vt_dims     = [1 35];
+        vt_definput	= {'F3,F4','C3,C4','O1,O2'};
+        vt_answer   = inputdlg(vt_prompt,ch_title,vt_dims,vt_definput);
+        vt_answer   = cellfun(@(x) split(x,','),vt_answer,...
+                    'UniformOutput',false);
+        vt_numel    = cellfun(@numel,vt_answer);
+        
+        mx_predCh   = cell(numel(vt_answer),max(vt_numel));
+        
+        for cc = 1:size(mx_predCh,2)
+            for rr = 1:size(mx_predCh,1)
+                if cc > vt_numel(rr)
+                    nm_col = vt_numel(rr);
+                else
+                    nm_col = cc;
+                end
+                
+                mx_predCh{rr,nm_col} = vt_answer{rr}{nm_col};
+            end
+        end
+        
+        try
+            mx_ismember = ismember(mx_predCh,st_spectrum.labels);
+            
+            if any(sum(mx_ismember,2) < 1)
+                error('channel fix')
+            end
+            
+        catch
+            warndlg({'Please check that channels names correspond';...
+                'to channels within the EEG file'},...
+                'Prediction warning'); 
+            return
+        end
+                
+        % Check channels
+        
+        st_cfg.chRead	= mx_predCh;
+        st_cfg.chIdx    = mx_ismember;        
+        st_cfg.patterns = st_longTerm;
+        st_cfg.spectrum = st_spectrum;
+
+        ob_dlg = msgbox('Please wait while predictions are done');
+        mx_features	= fn_hypnogram_prepare(st_cfg);
+        st_hyp      = fn_hypnogram_predict(mx_features,st_hyp);
+        
+        if ishandle(ob_dlg)
+            close(ob_dlg)
+        end
+        
+        % Update Hypnogram panel
+        
+        vt_stringCnt	=  num2cell(num2str((1:size(st_hyp.dat,1))'));
+        vt_stringCnt    =  vertcat(vt_stringCnt,{'new'});
+        
+        set(st_ctrHyp.SelHyp,'String',vt_stringCnt)
+        set(st_ctrHyp.SelHyp,'Value',st_hyp.id)
+        
+        fn_display_drawhypnogram()
+        
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_scorestate(hObject,~)
@@ -3040,14 +3157,45 @@ fn_control_extrapanel()
                     
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_control_gotoepoch(nm_epoch)
+        if ~isnumeric(nm_epoch) && ischar(nm_epoch)
+            vt_curScore = find(st_hyp.dat(st_hyp.id,:)== -1);
+            nm_tPos     = sum(st_hyp.timeEpoch <= st_disp.curTime);
+            
+            switch nm_epoch
+                case 'next'
+                    nm_epoch	= find(vt_curScore > nm_tPos,1,'first');
+                    nm_epoch    = vt_curScore(nm_epoch);
+                    
+                    if isempty(nm_epoch)
+                        nm_epoch	= numel(st_hyp.timeEpoch); 
+                    end
+                    
+                case 'previous'
+                    nm_epoch	= find(vt_curScore < nm_tPos,1,'last');
+                    nm_epoch    = vt_curScore(nm_epoch);
+                    
+                    if isempty(nm_epoch)
+                        nm_epoch	= 1; 
+                    end
+                    
+                otherwise
+                    return
+            end
+        end
+        
+        st_disp.curTime	= st_hyp.timeEpoch(nm_epoch);
+        
+        fn_display_process()
+                
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_key_release(~,hEvent)
                         
-        nm_IsFast	= false;
+        ch_modif	= 'null';
         
         if ~isempty(hEvent.Modifier)
-            if strcmpi(hEvent.Modifier{1,1},'alt') 
-                nm_IsFast	= true;
-            end
+            ch_modif	= hEvent.Modifier{1,1};
         end
         
         switch hEvent.Key
@@ -3055,20 +3203,28 @@ fn_control_extrapanel()
                 st_cursors.pos_H1 = 0;
                 st_cursors.pos_H2 = 1;
                 
-                if nm_IsFast
-                    fn_display_advance(st_ctrCh.FBBut);
-                else
-                    fn_display_advance(st_ctrCh.BBut);
+                switch ch_modif                    
+                    case 'control'
+                        fn_control_gotoepoch('previous')
+                    case 'alt'
+                        fn_display_advance(st_ctrCh.FBBut);
+                    otherwise
+                        fn_display_advance(st_ctrCh.BBut);
                 end
                 return
             case {'rightarrow','uparrow'}
                 st_cursors.pos_H1 = 0;
-                st_cursors.pos_H2 = 1;                
-                if nm_IsFast
-                    fn_display_advance(st_ctrCh.FFBut);
-                else
-                    fn_display_advance(st_ctrCh.FBut);
+                st_cursors.pos_H2 = 1; 
+                
+                switch ch_modif                    
+                    case 'control'
+                        fn_control_gotoepoch('next')                        
+                    case 'alt'
+                        fn_display_advance(st_ctrCh.FFBut);
+                    otherwise
+                        fn_display_advance(st_ctrCh.FBut);
                 end
+                
                 return
             otherwise
         end
@@ -3232,6 +3388,42 @@ fn_control_extrapanel()
         fn_display_drawhypnogram()
     end
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_control_hypnovote(~,~)
+       
+        if ~isfield(st_hyp,'dat')
+            return
+        end
+        
+        if size(st_hyp.dat,1) == 1
+            return
+        end
+        
+        
+        ch_answer	= questdlg(...
+                    {'You are going to vote for agreement between hypnograms';...
+                    'This option will delete the current hypnogram.';...
+                    'Would you like to continue?'},...
+                    'Vote for hypnogram', ...
+                    'Yes','No','No');
+                
+        switch ch_answer
+            case 'Yes'
+                % do nothing
+            case 'No'
+                return
+        end
+        
+        [vt_score,vt_f]	= mode(st_hyp.dat);
+        
+        vt_id           = vt_f == 1;
+        vt_score(vt_id) = -1;
+        
+        st_hyp.dat(st_hyp.id,:)	= vt_score;
+        
+        fn_display_drawhypnogram()
+        
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_hypnoremove(~,~)
         
         ch_answer	= questdlg(...
@@ -3246,8 +3438,17 @@ fn_control_extrapanel()
                 return
         end
         
-        st_hyp.dat(st_hyp.id,:)         = [];
-        st_hyp.arousals(st_hyp.id,:)	= [];
+        try     % This is no adequate
+            st_hyp.dat(st_hyp.id,:)	= [];
+        catch
+            % do nothing
+        end
+        
+        try
+            st_hyp.arousals(st_hyp.id,:)= [];
+        catch
+            % do nothing
+        end
         
         if st_hyp.id > size(st_hyp.dat,1) && ~isempty(st_hyp.dat)
             st_hyp.id = size(st_hyp.dat,1);
