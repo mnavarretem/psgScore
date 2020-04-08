@@ -3038,6 +3038,11 @@ fn_control_extrapanel()
         vt_answer   = inputdlg(vt_prompt,ch_title,vt_dims,vt_definput);
         vt_answer   = cellfun(@(x) split(x,','),vt_answer,...
                     'UniformOutput',false);
+                
+        if isempty(vt_answer)
+            return
+        end
+        
         vt_numel    = cellfun(@numel,vt_answer);
         
         mx_predCh   = cell(numel(vt_answer),max(vt_numel));
