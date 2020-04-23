@@ -1031,15 +1031,30 @@ fn_control_extrapanel()
                 ch_fullFileName	= fullfile(st_file.path,st_file.name);
                             
                 st_dat	= load(ch_fullFileName);
-                
-                if ~isfield(st_dat,'st_dat')
+                if isfield(st_dat,'trial')
+                    % fieldtrip file version        
+                    
+                    % Check for channel types
+                    if isfield(st_dat,'hdr') && ~isfield(st_dat,'chtype')
+                        st_dat.chtype	= st_dat.hdr.chantype;
+                    end
+                    
+                    % Check for scaling conversion
+                    if isfield(st_dat,'hdr') 
+                        if isfield(st_dat.hdr,'scale')
+                            fn_file_convert_eeg(st_dat.hdr.scale)                            
+                        end
+                    end
+                    
+                elseif isfield(st_dat,'st_dat')
+                    % First psgScore version                     
+                    st_dat	= st_dat.st_dat;
+                else
                     warndlg(sprintf(...
                         '%s is not an eeg file. Please select onther file',...
                         st_file.name))
                     return
                 end
-
-                st_dat	= st_dat.st_dat;
 
             otherwise
                 
@@ -1241,12 +1256,34 @@ fn_control_extrapanel()
         nm_resp	= exist(fullfile(st_file.path,st_file.extraFile),'file');
                 
         if logical(nm_resp)
+            % Check psg-Extras version
+            vt_file	= matfile(fullfile(st_file.path,st_file.extraFile));
+            vt_file	= who(vt_file);
             
-            st_longTerm	= load(fullfile(st_file.path,st_file.extraFile),....
-                        'st_patterns');
-            st_spectrum	= load(fullfile(st_file.path,st_file.extraFile),....
-                        'st_spectrum');
-        else            
+            % Load long term data
+            if ismember('st_patterns',vt_file)
+                st_longTerm	= load(fullfile(st_file.path,st_file.extraFile),....
+                            'st_patterns');
+                st_longTerm	= st_longTerm.st_patterns;
+            else
+                st_longTerm	= load(fullfile(st_file.path,st_file.extraFile),....
+                            'patterns');
+                st_longTerm	= st_longTerm.patterns;
+            end
+                        
+            % Load spectrum data
+            if ismember('st_spectrum',vt_file)
+                st_spectrum	= load(fullfile(st_file.path,st_file.extraFile),....
+                            'st_spectrum');
+                st_spectrum	= st_spectrum.st_spectrum; 
+            else
+                st_spectrum	= load(fullfile(st_file.path,st_file.extraFile),....
+                            'spectrum'); 
+                st_spectrum	= st_spectrum.spectrum;                
+            end
+            
+        else    
+            
             [ch_fileName,ch_filePath]	= uigetfile('*.mat',...
                                         'Select TF associated .mat file');
                                     
@@ -1270,9 +1307,14 @@ fn_control_extrapanel()
                 return
             end         
         end
-        
-        st_longTerm	= st_longTerm.st_patterns;
-        st_spectrum	= st_spectrum.st_spectrum;                       
+             
+        if isfield(st_longTerm,'scale')
+            fn_file_convert_longterm(st_longTerm.scale)
+        end
+             
+        if isfield(st_spectrum,'scale')
+            fn_file_convert_spectrum(st_spectrum.scale)
+        end
         
         
         nm_id           = get(st_ctrlTF.chanPop,'Value');
@@ -1298,14 +1340,55 @@ fn_control_extrapanel()
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_file_autosave(~,~)
         
-        if ~isfield(st_dat,'trial')
+        if ~isfield(st_dat,'trial') || ~st_hyp.isScoring
             return
         end
-        
+                
         nm_hMsg	= msgbox('Saving recovery file');
         save(fullfile(st_file.path,sprintf('~%s',st_file.hypnoFile)),...
         '-struct', 'st_hyp', '-v7.3');
         delete(nm_hMsg)
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_file_convert_eeg(vt_scale)
+        st_dat.trial{1} = single(st_dat.trial{1}) * vt_scale(1) ...
+                        + vt_scale(2);
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_file_convert_longterm(st_scale)
+        vt_fields	= fieldnames(st_scale);
+        
+        for ff = 1:numel(vt_fields)
+            
+            ch_fName	= vt_fields{ff};
+            vt_data     = st_longTerm.(ch_fName);
+            nm_scale    = st_scale.(ch_fName);  
+            
+            switch ch_fName
+                case 'EM'
+                    % do nothing
+                case 'EyeEvents'
+                    vt_data.REM	= single(vt_data.REM) * nm_scale;
+                    vt_data.SEM	= single(vt_data.SEM) * nm_scale;
+                                        
+                otherwise
+                    if iscell(vt_data)                                
+                        vt_data	= cellfun(@(x) single(x) * nm_scale,...
+                                vt_data,'UniformOutput',false);
+                    else
+                      	vt_data	= single(vt_data) * nm_scale;
+                    end
+            end
+            st_longTerm.(ch_fName)	=  vt_data;
+        end
+    end
+%::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    function fn_file_convert_spectrum(vt_scale)
+        
+        for nn = 1:numel(vt_scale)            
+            st_spectrum.data{nn}	= single(st_spectrum.data{nn}) ...
+                                    * vt_scale(nn);
+        end
     end
 
 %% [Functions] - Display
@@ -3103,8 +3186,11 @@ fn_control_extrapanel()
     function fn_control_scorestate(hObject,~)
         switch get(hObject,'Value')
             case 0 
+                
+                fn_file_autosave()
+                
                 set(st_ctrl.WindPop,'Enable','on')
-                st_hyp.isScoring    = 0;
+                st_hyp.isScoring	= 0;
                                 
                 if isfield(st_file,'objTimer')
                     if isobject(st_file.objTimer)

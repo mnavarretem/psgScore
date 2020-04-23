@@ -360,22 +360,109 @@ for ff = 1:numel(vt_chName)
         clear st_Cnf vt_rmsFS vt_spindle
 
     end
+    %% Convert to uint16 and reduce data size
+    % Reduce eeg data size
+    mx_sig	= st_dat.trial{1};
+    
+    mx_scale	= [min(mx_sig(:)),max(mx_sig(:));0,nm_resolution];
+    vt_linCoef  = fn_linecoef(mx_scale(1,:),mx_scale(2,:));
+    mx_sig      = mx_sig.*vt_linCoef(1) + vt_linCoef(2);
+    mx_sig      = uint16(mx_sig);
+    
+    st_dat.trial{1}     = mx_sig;
+    st_dat.hdr.scale	= fn_linecoef(mx_scale(2,:),mx_scale(1,:));
+    st_dat.hdr.chantype	= st_dat.chtype;
+    st_dat.hdr.label	= st_dat.label;
+    st_dat.hdr.nChans   = numel(st_dat.label);
+    st_dat.hdr.nSamples	= size(mx_sig,2);
+    
+    st_dat  = rmfield(st_dat,'chtype');
+    
+    % Reduce patterns size
+    
+    % Get patterns
+    st_patt     = st_patterns;
+    vt_fields	= fieldnames(st_patt);
+    
+    for nn = 1:numel(vt_fields)
+        ch_fName	= vt_fields{nn};
+        vt_data     = st_patt.(ch_fName);
+        
+        switch ch_fName
+            case 'EM'
+                nm_scale    = NaN;
+                vt_data     = uint8(vt_data);
+            case 'EyeEvents'
+                nm_max      = max([max(vt_data.REM(:)),...
+                    max(vt_data.SEM(:))]);
+                nm_scale	= nm_resolution/nm_max;
+                vt_data.REM	= vt_data.REM * nm_scale;
+                vt_data.SEM	= vt_data.SEM * nm_scale;
+                
+                vt_data.REM = uint16(vt_data.REM);
+                vt_data.SEM = uint16(vt_data.SEM);
+            otherwise
+                if iscell(vt_data)
+                    nm_max      = cellfun(@(x) max(x(:)),vt_data,...
+                                'UniformOutput',false);
+                    nm_max      = max(cell2mat(nm_max(:)));
+                    nm_scale	= nm_resolution/nm_max;
+                    
+                    vt_data	= cellfun(@(x) x * nm_scale,...
+                            vt_data,'UniformOutput',false);
+                    vt_data	= cellfun(@uint16,vt_data,...
+                            'UniformOutput',false);
+                else
+                    nm_max      = max(vt_data(:));
+                    nm_scale	= nm_resolution/nm_max;
+                    vt_data     = vt_data * nm_scale;
+                    vt_data     = uint16(vt_data);
+                end
+                
+        end
+        
+        st_patt.(ch_fName)	=  vt_data;
+        st_scale.(ch_fName)	=  1/nm_scale;
+    end
+    
+    st_patt.scale	= st_scale;
+    
+    % Get spectrum
+    st_spect	= st_spectrum;
+    vt_scale    = nan(size(st_spect.data));
+    
+    for nn = 1:numel(vt_scale)
+        vt_data     = st_spect.data{nn};
+        nm_max      = max(vt_data(:));
+        nm_scale	= nm_resolution/nm_max;
+        vt_data     = vt_data * nm_scale;
+        vt_data     = uint16(vt_data);
+        
+        vt_scale(nn)        = 1/nm_scale;
+        st_spect.data{nn}   = vt_data;
+    end
+    
+    st_spect.scale	= vt_scale;
+    
+    % Set saving structure
+    st_extras.patterns	= st_patt;
+    st_extras.spectrum	= st_spect;
     
     %% Save signal data
 
     [ch_rootPath,ch_dataName] = fileparts(ch_savename);
 
     ch_dataName     = sprintf('%s.mat',ch_dataName);
-    ch_spectrumName	= sprintf('psgExtra-%s',ch_dataName);
+    ch_extrasName	= sprintf('psgExtra-%s',ch_dataName);
 
     fprintf('Saving preprocessed data for %s: ',ch_savename)
     tic
-    save(fullfile(ch_rootPath,ch_dataName),'st_dat')
+    save(fullfile(ch_rootPath,ch_dataName),'-struct','st_dat')
     toc
 
-    fprintf('Saving preprocessed data for %s: ',ch_spectrumName)
+    fprintf('Saving preprocessed data for %s: ',ch_extrasName)
     tic
-    save(fullfile(ch_rootPath,ch_spectrumName),'st_patterns','st_spectrum')
+    save(fullfile(ch_rootPath,ch_extrasName),'-struct','st_extras')
     toc
 
 end
