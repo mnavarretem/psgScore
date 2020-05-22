@@ -14,11 +14,11 @@ toc
 
 %% Estimate hypnograms
 fprintf(' - Estimate by RF: ')
-tic
+tic     
 vt_hTree	= predict(st_mdl.tree,mx_dat);
 toc
 
-fprintf(' - Estimate  by SVM: ')
+fprintf(' - Estimate by SVM: ')
 tic
 vt_hSVM     = predict(st_mdl.svm,mx_dat);
 toc

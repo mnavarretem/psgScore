@@ -3097,8 +3097,6 @@ fn_control_extrapanel()
             return
         end
     end
-
-
 %::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     function fn_control_scorepredict(~,~)
         

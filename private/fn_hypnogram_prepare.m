@@ -90,7 +90,7 @@ vt_mu_nrm       = cellfun(@(x) x./mean(x,'omitnan'),vt_mu,...
 vt_beta_nrm     = cellfun(@(x) x./mean(x,'omitnan'),vt_beta,...
                 'UniformOutput',false);
                 
-vt_EM       = {st_patterns.EM + rand(2,numel(vt_timeEpoch))/100};
+vt_EM       = {single(st_patterns.EM) + rand(2,numel(vt_timeEpoch))/100};
 vt_EMG      = {st_patterns.rmsEMG(1,:) + rand(1,numel(vt_timeEpoch))/100};
 
 vt_soRate	= st_patterns.soRate(vt_idCh); 
