@@ -92,19 +92,16 @@ for ff = 1:numel(vt_chName)
     st_dat.trial{1} = single(st_dat.trial{1}); 
     st_dat.chtype	= cell(size(st_cfg.channel));
 
-    st_dat	= rmfield(st_dat,'cfg');
-    st_dat	= rmfield(st_dat,'sampleinfo'); 
-
     vt_timeStage = st_dat.time{1}(1):nm_scoreWind:st_dat.time{1}(end);
     
     %% Create filters
     fprintf('Design filters: ')
     tic
-    ob_filterEEG    = fn_designIIRfilter(st_dat.fsample,vt_freqPassEEG,vt_freqStopEEG);
-    ob_filterEMG	= fn_designIIRfilter(st_dat.fsample,vt_freqPassEMG,vt_freqStopEMG);
-    ob_filterEOG	= fn_designIIRfilter(st_dat.fsample,vt_freqPassEOG,vt_freqStopEOG);
-    ob_filterSO     = fn_designIIRfilter(st_dat.fsample,vt_freqPassSO,vt_freqStopSO);
-    ob_filterSP     = fn_designIIRfilter(st_dat.fsample,vt_freqPassSp,vt_freqStopSp);
+    ob_filterEEG    = fn_filter_designIIR(st_dat.fsample,vt_freqPassEEG,vt_freqStopEEG);
+    ob_filterEMG	= fn_filter_designIIR(st_dat.fsample,vt_freqPassEMG,vt_freqStopEMG);
+    ob_filterEOG	= fn_filter_designIIR(st_dat.fsample,vt_freqPassEOG,vt_freqStopEOG);
+    ob_filterSO     = fn_filter_designIIR(st_dat.fsample,vt_freqPassSO,vt_freqStopSO);
+    ob_filterSP     = fn_filter_designIIR(st_dat.fsample,vt_freqPassSp,vt_freqStopSp);
     toc
 
     %% Filter Channels
@@ -123,7 +120,7 @@ for ff = 1:numel(vt_chName)
 
     fprintf('Filtering EEG and EOG: ')
     tic
-    st_dat.trial{1}(vt_id,:)	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',...
+    st_dat.trial{1}(vt_id,:)	= fn_filter_offline(st_dat.trial{1}(vt_id,:)',...
                                 ob_filterEEG)'; 
     toc
     
@@ -131,7 +128,7 @@ for ff = 1:numel(vt_chName)
     vt_id   = ismember(st_dat.label,vt_chEMG);
     fprintf('Filtering EMG: ')
     tic
-    st_dat.trial{1}(vt_id,:)	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',....
+    st_dat.trial{1}(vt_id,:)	= fn_filter_offline(st_dat.trial{1}(vt_id,:)',....
                                 ob_filterEMG)'; 
     vt_emgId = find(vt_id);
     
@@ -152,16 +149,16 @@ for ff = 1:numel(vt_chName)
     
     fprintf('Filtering EOG for movements: ')
     tic
-    mx_chREM	= fn_filterOffline(st_dat.trial{1}(vt_id,:)',ob_filterEOG)'; 
+    mx_chREM	= fn_filter_offline(st_dat.trial{1}(vt_id,:)',ob_filterEOG)'; 
     toc
     
     %% REM detection
     fprintf('Detecting eye movements: ')
     tic
-    st_Cnf              = struct;
-    st_Cnf.fsampling    = st_dat.fsample;
+    st_cnf              = struct;
+    st_cnf.fsampling    = st_dat.fsample;
     
-    [vt_remLoc,vt_semLoc]	= fn_detectsleepREM(mx_chREM,st_Cnf);
+    [vt_remLoc,vt_semLoc]	= fn_sleep_detect_rems(mx_chREM,st_cnf);
     toc
     
     fprintf('Obtain EOG density: ')
@@ -244,47 +241,48 @@ for ff = 1:numel(vt_chName)
         st_spectrum.data{ch}	= mx_TF; 
         st_spectrum.time        = vt_T;
         
-        %% Obtain Ch alpha and theta trains
-        
+        %% Obtain Ch alpha and theta trains       
         
         fprintf('   ** Detect theta trains: ')
         tic
-        st_Cnf              = struct;
-        st_Cnf.fsampling	= st_dat.fsample;
-        st_Cnf.minnumosc	= nm_minNumOsc;
-        st_Cnf.timebounds	= vt_timeFreqEvn;
-        st_Cnf.rawEEG       = vt_signalCh;
-        st_Cnf.freqband     = vt_thetaFreq;
-        st_Cnf.method       = 'fixed';
-        st_Cnf.toFilter     = true;
+        st_cnf              = struct;
+        st_cnf.fsampling	= st_dat.fsample;
+        st_cnf.minnumosc	= nm_minNumOsc;
+        st_cnf.timebounds	= vt_timeFreqEvn;
+        st_cnf.rawEEG       = vt_signalCh;
+        st_cnf.freqband     = vt_thetaFreq;
+        st_cnf.method       = 'fixed';
+        st_cnf.toFilter     = true;
 
-        st_patterns.thetaTr{ch}	= fn_detectfreqtrain(vt_signalCh,st_Cnf);    
+        st_patterns.thetaTr{ch}	= fn_sleep_detect_oscillations(...
+                                vt_signalCh,st_cnf);    
         toc         
         
         fprintf('   ** Detect alpha trains: ')
         tic
-        st_Cnf              = struct;
-        st_Cnf.fsampling	= st_dat.fsample;
-        st_Cnf.minnumosc	= nm_minNumOsc;
-        st_Cnf.timebounds	= vt_timeFreqEvn;
-        st_Cnf.rawEEG       = vt_signalCh;
-        st_Cnf.freqband     = vt_alphaFreq;
-        st_Cnf.method       = 'fixed';
-        st_Cnf.toFilter     = true;
+        st_cnf              = struct;
+        st_cnf.fsampling	= st_dat.fsample;
+        st_cnf.minnumosc	= nm_minNumOsc;
+        st_cnf.timebounds	= vt_timeFreqEvn;
+        st_cnf.rawEEG       = vt_signalCh;
+        st_cnf.freqband     = vt_alphaFreq;
+        st_cnf.method       = 'fixed';
+        st_cnf.toFilter     = true;
 
-        st_patterns.alphaTr{ch}	= fn_detectfreqtrain(vt_signalCh,st_Cnf);    
+        st_patterns.alphaTr{ch}	= fn_sleep_detect_oscillations(...
+                                vt_signalCh,st_cnf);    
         toc         
         
         %% Obtain Ch arousals
         
         fprintf('   ** Detect arousal events: ')
         tic
-        st_Cnf   	= struct;
-        st_Cnf.time	= vt_T;
-        st_Cnf.freq	= vt_freqTF;
-        st_Cnf.tEEG	= st_dat.time{1};
+        st_cnf   	= struct;
+        st_cnf.time	= vt_T;
+        st_cnf.freq	= vt_freqTF;
+        st_cnf.tEEG	= st_dat.time{1};
 
-        st_patterns.arousal{ch}	= fn_detectsleeparousal(mx_TF,st_Cnf);    
+        st_patterns.arousal{ch}	= fn_sleep_detect_arousal(mx_TF,st_cnf);    
         toc               
          
         %% Obtain frequency band time-line
@@ -314,29 +312,29 @@ for ff = 1:numel(vt_chName)
         %% Filter in SO frequency band
         fprintf('Filtering in SO band for %s: ',st_spectrum.labels{ch})
         tic
-        vt_signalSO	= fn_filterOffline(vt_signalCh,ob_filterSO);
+        vt_signalSO	= fn_filter_offline(vt_signalCh,ob_filterSO);
         toc
 
         %% Detect SO events
         fprintf('   ** Detect SO events: ')
         tic
-        st_Cnf              = struct;
-        st_Cnf.freqband     = [];
-        st_Cnf.fsampling	= st_dat.fsample;
-        st_Cnf.threshold	= nm_troughThres;
-        st_Cnf.minthresh	= [];
-        st_Cnf.toFilter     = [];
+        st_cnf              = struct;
+        st_cnf.freqband     = [];
+        st_cnf.fsampling	= st_dat.fsample;
+        st_cnf.threshold	= nm_troughThres;
+        st_cnf.minthresh	= [];
+        st_cnf.toFilter     = [];
 
-        vt_SOwaves              = fn_detectsleepSO(vt_signalSO,st_Cnf);    
+        vt_SOwaves              = fn_sleep_detect_SO(vt_signalSO,st_cnf);    
         st_patterns.SOevent{ch}	= st_dat.time{1}(vt_SOwaves);
         toc
 
-        clear st_Cnf vt_SOwaves vt_signalSO
+        clear st_cnf vt_SOwaves vt_signalSO
 
         %% Filter in the fast spindle band
         fprintf('Filtering in spindle band for %s: ',st_spectrum.labels{ch})
         tic
-        vt_rmsFS	= single(fn_filterOffline(vt_signalCh,ob_filterSP));
+        vt_rmsFS	= single(fn_filter_offline(vt_signalCh,ob_filterSP));
         vt_rmsFS    = single(fn_rmstimeseries(vt_rmsFS,vt_timeSpindles(1)));
         toc
 
@@ -344,22 +342,23 @@ for ff = 1:numel(vt_chName)
 
         fprintf('	** Processing spindles: ')
         tic
-        st_Cnf              = struct;
-        st_Cnf.fsampling	= st_dat.fsample;
-        st_Cnf.minnumosc	= nm_minNumOsc;
-        st_Cnf.timebounds	= vt_timeSpindles;
-        st_Cnf.rawEEG       = vt_signalCh;
-        st_Cnf.freqband     = vt_freqPassSp;
-        st_Cnf.method       = 'fixed';
+        st_cnf              = struct;
+        st_cnf.fsampling	= st_dat.fsample;
+        st_cnf.minnumosc	= nm_minNumOsc;
+        st_cnf.timebounds	= vt_timeSpindles;
+        st_cnf.rawEEG       = vt_signalCh;
+        st_cnf.freqband     = vt_freqPassSp;
+        st_cnf.method       = 'fixed';
 
-        vt_spindle              = fn_detectsleepSpindles(vt_rmsFS,st_Cnf);
+        vt_spindle              = fn_detectsleepSpindles(vt_rmsFS,st_cnf);
         vt_spindle              = round(mean(vt_spindle,2));
         st_patterns.SPevent{ch}	= st_dat.time{1}(vt_spindle);
         toc
 
-        clear st_Cnf vt_rmsFS vt_spindle
+        clear st_cnf vt_rmsFS vt_spindle
 
     end
+    
     %% Convert to uint16 and reduce data size
     % Reduce eeg data size
     mx_sig	= st_dat.trial{1};

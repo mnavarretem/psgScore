@@ -1,10 +1,31 @@
-% fn_hypnogram_prepare
-
 function mx_features	= fn_hypnogram_prepare(st_cfg)
 
-%% Process
+% mx_features	= fn_hypnogram_prepare(st_cfg) prepares hypnogram features 
+% to use in sleep stage classification
+%
+% 	st_cfg.chRead	= eeg labels to evaluate;
+% 	st_cfg.chIdx	= index of eeg labels;
+% 	st_cfg.patterns = patterns structure 
+% 	st_cfg.spectrum = spectrum structure 
 
-mx_idEEG	= st_cfg.chRead;
+%% GNU licence,
+% Copyright (C) <2017>  <Miguel Navarrete>
+% 
+% This program is free software: you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+%% Code starts here
+mx_eegLabel	= st_cfg.chRead;
 mx_idCh     = st_cfg.chIdx;
 st_patterns	= st_cfg.patterns;
 st_spectrum	= st_cfg.spectrum;
@@ -36,18 +57,18 @@ for tt = 1:numel(vt_timeEpoch)
     mx_chSpectrum(:,tt) = vt_section;
 end
 
-mx_var	= nan(size(mx_idEEG));
-mx_tf	= cell(size(mx_idEEG));
-mx_idCH = nan(size(mx_idEEG));
+mx_var	= nan(size(mx_eegLabel));
+mx_tf	= cell(size(mx_eegLabel));
+mx_idCH = nan(size(mx_eegLabel));
 
-for cc = 1:numel(mx_idEEG)
+for cc = 1:numel(mx_eegLabel)
     % Solve for spectrum
     if ~mx_idCh(cc)
         mx_var(cc)	= inf;
         continue
     end
     
-    vt_idCH	= ismember(st_spectrum.labels,mx_idEEG(cc));
+    vt_idCH	= ismember(st_spectrum.labels,mx_eegLabel(cc));
     vt_tfCH = cell2mat(mx_chSpectrum(vt_idCH,:));
     vt_sdCH = std(vt_tfCH,[],2);
     

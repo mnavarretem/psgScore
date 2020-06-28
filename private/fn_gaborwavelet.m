@@ -50,7 +50,8 @@
 % order (Hz units)
 %
 % Author: Mario Valderrama
-%
+% Modified: Miguel Navarrete
+
 function [mx_gaborWT, vt_timeAxis, vt_freqAxis] = ...
     fn_gaborwavelet(...
     vt_signal, ...

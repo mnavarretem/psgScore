@@ -1,11 +1,24 @@
 function vt_rms = fn_rmstimeseries(vt_signal,nm_window)
 % vt_rms = fn_rmstimeseries(vt_signal,nm_window) computes the rms (vt_rms)
 % timeseries of signal vt_signal using an sliding window of nm_window
-% samples
+% samples                    
 
-% Miguel Navarrete
-% CUBRIC
-% 2017
+%% GNU licence,
+% Copyright (C) <2017>  <Miguel Navarrete>
+% 
+% This program is free software: you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 %% 
 nm_window   = round(nm_window);
 if mod(nm_window, 2) == 0
