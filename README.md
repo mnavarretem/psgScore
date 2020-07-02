@@ -23,7 +23,7 @@ Add **psgScore** files to the MATLAB path: [Home > Set Path > Add with subfolder
 
 or typing in the command window:
 ``` Matlab
-addpath(genpath(c:/~your-ripplelab-basefolder));
+addpath(genpath(c:/~your-psgScore-basefolder));
 ```
 
 ## Usage
