@@ -1185,17 +1185,31 @@ fn_control_extrapanel()
         
         if ischar(st_file.hypnoList)
             st_file.hypnoList	= {st_file.hypnoList};
-        end
-                                          
-        vt_idList           = ~ismember(st_file.hypnoList,st_file.hypnoFile);
-        st_file.hypnoList   = st_file.hypnoList(vt_idList);
+        end                                          
                         
-%         nm_resp	= exist(fullfile(st_file.path,st_file.hypnoFile),'file');
-%                 
-%         if logical(nm_resp)
-%             st_file.hypnoList   = horzcat({st_file.hypnoFile},st_file.hypnoList);
-%         end
+        vt_idLst	= ismember(st_file.hypnoList,st_file.hypnoFile);
         
+        if any(vt_idLst)
+            ch_answ	= questdlg(...
+                    [{'This option will load an hypnogram with the same filename.'};...
+                    {'Would you like to continue?'}],...
+                    'Repeated hypnogram','Yes','No','No');
+                
+            switch ch_answ
+                case 'Yes'
+                    % Do nothing
+                case 'No'   
+                    % Remove repeated filename hypnogram
+                    vt_idLst	= ~ismember(st_file.hypnoList,st_file.hypnoFile);
+                    st_file.hypnoList   = st_file.hypnoList(vt_idLst);
+            end
+        end
+                
+        st_hypBulk.dat      = {};
+        st_hypBulk.arousals	= {};
+        st_hypBulk.timeEpoch= {};
+        st_hypBulk.epoch	= {};
+            
         for ff = 1:numel(st_file.hypnoList)
                         
             st_hypLst	= load(fullfile(st_file.path,st_file.hypnoList{ff}));
@@ -1217,22 +1231,28 @@ fn_control_extrapanel()
         end
         
         vt_numEpoch	= cellfun(@numel,st_hypBulk.dat); 
-        vt_idList   = vt_numEpoch > 0;
+        vt_idLst	= vt_numEpoch > 0;
         
-        st_hypBulk.dat      = st_hypBulk.dat(vt_idList);
-        st_hypBulk.arousals	= st_hypBulk.arousals(vt_idList);
-        st_hypBulk.timeEpoch= st_hypBulk.timeEpoch(vt_idList);
-        st_hypBulk.epoch    = st_hypBulk.epoch(vt_idList);
-        st_file.hypnoList   = st_file.hypnoList(vt_idList);
+        if ~any(vt_idLst)
+            ob_f	= warndlg('None hypnogram was imported',...
+                    'Hypnogram warning'); %#ok<NASGU>
+            return
+        end
+        
+        st_hypBulk.dat      = st_hypBulk.dat(vt_idLst);
+        st_hypBulk.arousals	= st_hypBulk.arousals(vt_idLst);
+        st_hypBulk.timeEpoch= st_hypBulk.timeEpoch(vt_idLst);
+        st_hypBulk.epoch    = st_hypBulk.epoch(vt_idLst);
+        st_file.hypnoList   = st_file.hypnoList(vt_idLst);
         
         vt_numEpoch	= cellfun(@(x) size(x,2),st_hypBulk.dat); 
-        vt_idList   = vt_numEpoch == vt_numEpoch(1);
+        vt_idLst    = vt_numEpoch == vt_numEpoch(1);
         
-        st_hypBulk.dat      = st_hypBulk.dat(vt_idList);
-        st_hypBulk.arousals	= st_hypBulk.arousals(vt_idList);
-        st_hypBulk.timeEpoch= st_hypBulk.timeEpoch(vt_idList);
-        st_hypBulk.epoch    = st_hypBulk.epoch(vt_idList);
-        st_file.hypnoList   = st_file.hypnoList(vt_idList);
+        st_hypBulk.dat      = st_hypBulk.dat(vt_idLst);
+        st_hypBulk.arousals	= st_hypBulk.arousals(vt_idLst);
+        st_hypBulk.timeEpoch= st_hypBulk.timeEpoch(vt_idLst);
+        st_hypBulk.epoch    = st_hypBulk.epoch(vt_idLst);
+        st_file.hypnoList   = st_file.hypnoList(vt_idLst);
         
         st_hyp.dat      = vertcat(st_hyp.dat,cell2mat(st_hypBulk.dat));
         st_hyp.arousals	= vertcat(st_hyp.arousals,st_hypBulk.arousals{:});
