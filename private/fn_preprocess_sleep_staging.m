@@ -350,7 +350,7 @@ for ff = 1:numel(vt_chName)
         st_cnf.freqband     = vt_freqPassSp;
         st_cnf.method       = 'fixed';
 
-        vt_spindle              = fn_detectsleepSpindles(vt_rmsFS,st_cnf);
+        vt_spindle              = fn_sleep_detect_spindles(vt_rmsFS,st_cnf);
         vt_spindle              = round(mean(vt_spindle,2));
         st_patterns.SPevent{ch}	= st_dat.time{1}(vt_spindle);
         toc

@@ -1,44 +1,43 @@
-function [mx_eventLims,vt_centFreq,vt_eeg]	= fn_detectsleepSpindles(...
-                                            vt_eeg,st_cnf)
-% [mx_eventLims,vt_centFreq,vt_eeg] = fn_detectsleepSO(vt_eeg,st_cnf) 
-% detect all sleep spindles from channel vt_eeg depending on the 
-% settings in the structure st_cnf. 
+function mx_eventLims = fn_sleep_detect_oscillations(vt_eeg,st_Cnf)
+% mx_eventLims = fn_sleep_detect_oscillations(vt_eeg,st_Cnf) 
+% detect all oscillation trains from channel vt_eeg depending on the 
+% settings in the structure st_Cnf. 
 %
 % mx_eventLims corresponds to a matrix indicating the locations (in
-% samples) of each detected SO. st_cnf corresponds to a structure with the
+% samples) of each detected SO. st_Cnf corresponds to a structure with the
 % fields:
 %
-%   - st_cnf.freqband:	1 x 2 vector indicating the frequency band limits
+%   - st_Cnf.freqband:	1 x 2 vector indicating the frequency band limits
 %                       for SO detection, (default = [9 16])
 %
-%   - st_cnf.fsampling:	Sampling frequency in hertz
+%   - st_Cnf.fsampling:	Sampling frequency in hertz
 %   
-%   - st_cnf.window:	Window time in seconds to compute spindle energy
+%   - st_Cnf.window:	Window time in seconds to compute event energy
 %                       (default: 0.3)
 %   
-%   - st_cnf.minnumosc:	Minimum number of oscillations (default: 4)
+%   - st_Cnf.minnumosc:	Minimum number of oscillations (default: 4)
 %   
-%   - st_cnf.timebounds:    [min,max] time duration in seconds (default: [0.3,3])
+%   - st_Cnf.timebounds:    [min,max] time duration in seconds (default: [0.3,3])
 % 
-%   - st_cnf.dynamics:	slow dynamics in seconds for spindle
+%   - st_Cnf.dynamics:	slow dynamics in seconds for event
 %                           thresholding (default: 30)
 %
-%   - st_cnf.hypnogram:	vector of the hypnogram in samples 
-%                       (numel(st_cnf.hypnogram) == numel(vt_eeg)), By
+%   - st_Cnf.hypnogram:	vector of the hypnogram in samples 
+%                       (numel(st_Cnf.hypnogram) == numel(vt_eeg)), By
 %                       default this field is empty
 %
-%   - st_cnf.stage:     scalar indicating the sleep stage (as stated in
-%                       the hypnogram) in which the spindles should be
+%   - st_Cnf.stage:     scalar indicating the sleep stage (as stated in
+%                       the hypnogram) in which the events should be
 %                       identified (default = [])
 % 
-%   - st_cnf.toFilter:	Filter input in SO band (default = false)
+%   - st_Cnf.toFilter:	Filter input in SO band (default = false)
 % 
-%   - st_cnf.timeFreq:	Time-frequency correction (default = true)
+%   - st_Cnf.timeFreq:	Time-frequency correction (default = true)
 %
-%   - st_cnf.rawEEG:	Raw EEG wheter the signal is filtered
+%   - st_Cnf.rawEEG:	Raw EEG wheter the signal is filtered
 %                       beforehand
 %                           
-%   - st_cnf.method         Method for spindle detection ('adaptative',
+%   - st_Cnf.method         Method for event detection ('adaptative',
 %                           'fixed'). 
 %
 
@@ -58,90 +57,89 @@ function [mx_eventLims,vt_centFreq,vt_eeg]	= fn_detectsleepSpindles(...
 % You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 %% Code starts here:
 
 %%	- Check default inputs
 
 if ~isvector(vt_eeg)
-    error('fn_detectsleepSO:signalIsNotVector','Input must be a vector;'); 
+    error('fn_detectfreqtrain:signalIsNotVector','Input must be a vector;'); 
 end
 
 if nargin < 2   % if not input arguments, then use arguments by default    
-	st_cnf  = struct;
+	st_Cnf  = struct;
 end
 
-% Check whether st_cnf fileds are empty
-if ~isfield(st_cnf,'freqband') 
-    st_cnf.freqband     = [9 16];
+% Check whether st_Cnf fileds are empty
+if ~isfield(st_Cnf,'freqband') 
+    st_Cnf.freqband     = [8 13];
 end
 
-if ~isfield(st_cnf,'fsampling')
-    st_cnf.fsampling	= 1;
+if ~isfield(st_Cnf,'fsampling')
+    st_Cnf.fsampling	= 1;
 end
 
-if ~isfield(st_cnf,'window')
-    st_cnf.window       = 0.3;
+if ~isfield(st_Cnf,'window')
+    st_Cnf.window       = 0.3;
 end
 
-if ~isfield(st_cnf,'minnumosc')
-    st_cnf.minnumosc	= 4;
+if ~isfield(st_Cnf,'minnumosc')
+    st_Cnf.minnumosc	= 4;
 end
 
-if ~isfield(st_cnf,'timebounds')
-    st_cnf.timebounds	= [0.3,3];
+if ~isfield(st_Cnf,'timebounds')
+    st_Cnf.timebounds	= [3,inf];
 end
 
-if ~isfield(st_cnf,'dynamics')
-    st_cnf.dynamics	= [1,30];
+if ~isfield(st_Cnf,'dynamics')
+    st_Cnf.dynamics	= [1,30];
 end
 
-if ~isfield(st_cnf,'hypnogram')
-    st_cnf.hypnogram	= [];
+if ~isfield(st_Cnf,'hypnogram')
+    st_Cnf.hypnogram	= [];
 end
 
-if ~isfield(st_cnf,'stage')
-    st_cnf.stage	= [];
+if ~isfield(st_Cnf,'stage')
+    st_Cnf.stage	= [];
 end
 
-if ~isfield(st_cnf,'timeFreq')
-    st_cnf.timeFreq	= true;
+if ~isfield(st_Cnf,'timeFreq')
+    st_Cnf.timeFreq	= true;
 end
 
-if ~isfield(st_cnf,'rawEEG')
-    st_cnf.rawEEG	= [];
+if ~isfield(st_Cnf,'rawEEG')
+    st_Cnf.rawEEG	= [];
 end
 
-if ~isfield(st_cnf,'toFilter')
-    st_cnf.toFilter	= false;
+if ~isfield(st_Cnf,'toFilter')
+    st_Cnf.toFilter	= false;
 end
 
-if ~isfield(st_cnf,'method')
-    st_cnf.method	= 'adapted';
+if ~isfield(st_Cnf,'method')
+    st_Cnf.method	= 'adapted';
 end
 
-if ~isfield(st_cnf,'rms')
-    st_cnf.rms	= [];
+if ~isfield(st_Cnf,'rms')
+    st_Cnf.rms	= [];
 end
 
-%% Filter input if required
+%%	- Filter input if required
 
 vt_eeg      = vt_eeg(:);
-vt_rawEEG	= st_cnf.rawEEG;
-nm_fSample  = st_cnf.fsampling;	
-vt_fSpindle = st_cnf.freqband;
+vt_rawEEG	= st_Cnf.rawEEG;
+nm_fSample  = st_Cnf.fsampling;	
+vt_fevent = st_Cnf.freqband;
 
-st_cnf      = rmfield(st_cnf,{'rawEEG','fsampling','freqband'});
+st_Cnf      = rmfield(st_Cnf,{'rawEEG','fsampling','freqband'});
 
-if st_cnf.toFilter
+if st_Cnf.toFilter
     
     vt_rawEEG	= vt_eeg;
     
     nm_fNyquist = nm_fSample / 2;    
-    nm_fStopLo  = (vt_fSpindle(1) - 1) / nm_fNyquist;
-    nm_fPassLo  = vt_fSpindle(1) / nm_fNyquist;
-    nm_fPassHi  = vt_fSpindle(2) / nm_fNyquist;
-    nm_fStopHi  = (vt_fSpindle(2) + 1) / nm_fNyquist;
+    nm_fStopLo  = (vt_fevent(1) - 1) / nm_fNyquist;
+    nm_fPassLo  = vt_fevent(1) / nm_fNyquist;
+    nm_fPassHi  = vt_fevent(2) / nm_fNyquist;
+    nm_fStopHi  = (vt_fevent(2) + 1) / nm_fNyquist;
     nm_dbPass   = 0.5;
     nm_dbStopLo	= 40;
     nm_dbStopHi	= 40;
@@ -152,60 +150,60 @@ if st_cnf.toFilter
 
     ob_filter   = design(ob_filter,'equiripple');
 
-    vt_eeg	= fn_filterOffline(vt_eeg,ob_filter);
+    vt_eeg	= fn_filter_offline(vt_eeg,ob_filter);
 end
 
 %% Define auxiliary variables
 
 % Variables for stage constrains
-if ~isempty(st_cnf.hypnogram) && ~isempty(st_cnf.stage)
+if ~isempty(st_Cnf.hypnogram) && ~isempty(st_Cnf.stage)
    nm_isStage       = true;
-   vt_validStage    = ismember(st_cnf.hypnogram,st_cnf.stage);
+   vt_validStage    = ismember(st_Cnf.hypnogram,st_Cnf.stage);
 else
    nm_isStage       = false;
    vt_validStage    = [];
 end
 
-st_cnf      = rmfield(st_cnf,{'hypnogram','stage'});
+st_Cnf      = rmfield(st_Cnf,{'hypnogram','stage'});
 
 % Variables for time-frequency constrains
-if ~isempty(vt_rawEEG) && st_cnf.timeFreq
+if ~isempty(vt_rawEEG) && st_Cnf.timeFreq
     nm_isTimeFreq	= true;
-    % Evaluate frequence in 0.1Hz steps form 0.5 to 20Hz
-    vt_freq         = 4:0.05:20;
-%     vt_iFreq        = vt_freq >= vt_fSpindle(1) & vt_freq <= vt_fSpindle(2);
+    % Evaluate frequency in 0.1Hz steps form 2 to 30Hz
+    vt_freq         = 2:0.05:30;
+%     vt_iFreq        = vt_freq >= vt_fevent(1) & vt_freq <= vt_fevent(2);
     % Compute TF with 1 second of signal around the detected event
     nm_tFill        = nm_fSample;
 else
    nm_isTimeFreq	= false;
 end
 
-%%	- Detect putative spindles
+%%	- Detect putative events
 
-% Determine spindle rms energy
-if isempty(st_cnf.rms)
-    nm_windowRMS	= round(nm_fSample * st_cnf.window);
-    st_cnf.rms          = fn_rmstimeseries(vt_eeg,nm_windowRMS);    
+% Determine event rms energy
+if isempty(st_Cnf.rms)
+    nm_windowRMS	= round(nm_fSample * st_Cnf.window);
+    st_Cnf.rms      = fn_rmstimeseries(vt_eeg,nm_windowRMS);    
 end
 
-switch st_cnf.method
+switch st_Cnf.method
     case 'adapted'
 
-        % Determine dynamics of spindle activity
-        nm_windowFast   = round(nm_fSample * st_cnf.dynamics(1));
-        nm_windowSlow   = round(nm_fSample * st_cnf.dynamics(2));
+        % Determine dynamics of event activity
+        nm_windowFast   = round(nm_fSample * st_Cnf.dynamics(1));
+        nm_windowSlow   = round(nm_fSample * st_Cnf.dynamics(2));
 
-        vt_fastDynamics = fn_rmstimeseries(st_cnf.rms,nm_windowFast);
-        vt_slowDynamics = fn_rmstimeseries(st_cnf.rms,nm_windowSlow);
+        vt_fastDynamics = fn_rmstimeseries(st_Cnf.rms,nm_windowFast);
+        vt_slowDynamics = fn_rmstimeseries(st_Cnf.rms,nm_windowSlow);
 
         % Determine overcrossing events  
-        vt_overcrossing     = st_cnf.rms > vt_fastDynamics & ...
+        vt_overcrossing     = st_Cnf.rms > vt_fastDynamics & ...
                             vt_fastDynamics > vt_slowDynamics;
         vt_overcrossing     = diff(vertcat(0,vt_overcrossing,0));
         mx_eventDetect         = [find(vt_overcrossing == 1),...
                             find(vt_overcrossing == -1)-1];
 
-        vt_overThreshold   = st_cnf.rms > vt_slowDynamics;
+        vt_overThreshold   = st_Cnf.rms > vt_slowDynamics;
         vt_overThreshold	= diff(vertcat(0,vt_overThreshold,0));
         mx_eventBorder      = [find(vt_overThreshold == 1),...
                             find(vt_overThreshold == -1)-1];
@@ -213,9 +211,9 @@ switch st_cnf.method
         % Determine threshold        
                 
         if ~isempty(vt_validStage)
-            vt_rmsCurrent	= st_cnf.rms(vt_validStage); 
+            vt_rmsCurrent	= st_Cnf.rms(vt_validStage); 
         else            
-            vt_rmsCurrent   = st_cnf.rms;
+            vt_rmsCurrent   = st_Cnf.rms;
         end
                 
         nm_thresArtif	= prctile(vt_rmsCurrent,100*erf(3.5/sqrt(2)));
@@ -225,25 +223,25 @@ switch st_cnf.method
         clear vt_rmsCurrent
         % 86.6 >> https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
             
-        vt_overThreshold	= st_cnf.rms > nm_thresDetect;
+        vt_overThreshold	= st_Cnf.rms > nm_thresDetect;
         vt_overThreshold	= diff(vertcat(0,vt_overThreshold,0));
         mx_eventDetect      = [find(vt_overThreshold == 1),...
                             find(vt_overThreshold == -1)-1];
                         
-        vt_overThreshold	= st_cnf.rms > nm_thresBorder;
+        vt_overThreshold	= st_Cnf.rms > nm_thresBorder;
         vt_overThreshold	= diff(vertcat(0,vt_overThreshold,0));
         mx_eventBorder      = [find(vt_overThreshold == 1),...
                             find(vt_overThreshold == -1)-1];
                         
-        vt_overThreshold	= st_cnf.rms > nm_thresArtif;
+        vt_overThreshold	= st_Cnf.rms > nm_thresArtif;
         vt_overThreshold	= diff(vertcat(0,vt_overThreshold,0));
         mx_eventArtifact	= [find(vt_overThreshold == 1),...
                             find(vt_overThreshold == -1)-1];
 end
 
-%% - Select spindles
+%% - Select eventss
 
-% Select spindles by sleep stage if required %..............................
+% Select eventss by sleep stage if required %..............................
 if nm_isStage
     vt_curStage	= vt_validStage(mx_eventBorder);
 else
@@ -259,8 +257,8 @@ mx_eventBorder	= mx_eventBorder(vt_curStage,:);
 % inside time boundaries
 vt_oscilPeaks   = findextrema(abs(vt_eeg));
 
-nm_minDuration  = round(nm_fSample * st_cnf.timebounds(1));
-nm_maxDuration  = round(nm_fSample * st_cnf.timebounds(2));
+nm_minDuration  = round(nm_fSample * st_Cnf.timebounds(1));
+nm_maxDuration  = round(nm_fSample * st_Cnf.timebounds(2));
 
 vt_timeEvents   = diff(mx_eventBorder,1,2);
 vt_idEvents     = nm_minDuration <= vt_timeEvents & ...
@@ -279,21 +277,21 @@ for kk = 1:numel(vt_idEvents)
         continue
     end
     
-    % Select spindles by time duration and number of oscillations %.............
+    % Select events by time duration and number of oscillations %.............
     vt_curDetections	= mx_eventBorder(kk,1) <= mx_eventDetect(:,1) & ...
                         mx_eventBorder(kk,2) >= mx_eventDetect(:,2);
             
 	nm_numOscillations  = sum(vt_oscilPeaks >= mx_eventBorder(kk,1) & ...
                         vt_oscilPeaks <= mx_eventBorder(kk,2));
             
-    if ~any(vt_curDetections) || nm_numOscillations < 2*st_cnf.minnumosc
+    if ~any(vt_curDetections) || nm_numOscillations < 2*st_Cnf.minnumosc
         continue
     end
         
     if nm_isTimeFreq
         
         % Prepare segment to analyze and indentify relative position of
-        % detected spindle
+        % detected event
         vt_idSamples	= mx_eventBorder(kk,1) - nm_tFill:...
                         mx_eventBorder(kk,2) + nm_tFill;
         
@@ -309,8 +307,8 @@ for kk = 1:numel(vt_idEvents)
         mx_CurTF	= fn_gaborwavelet(vt_segment,nm_fSample,vt_freq);
         mx_CurTF    = flipud(mx_CurTF);
         
-        % Determine main frequency components in detected spindle and check
-        % whether they are into the spindle limits
+        % Determine main frequency components in detected event and check
+        % whether they are into the event limits
         vt_frqEvent	= mean(mx_CurTF(:,vt_curIdEvent),2);
         
         vt_iPeaks   = findextrema(vt_frqEvent);
@@ -320,14 +318,14 @@ for kk = 1:numel(vt_idEvents)
         [~,vt_iPeaks]	= sort(vt_peakCoef,'descend');
         vt_peakFreq     = vt_peakFreq(vt_iPeaks); 
         
-        vt_iPeaks   = find(vt_peakFreq >= vt_fSpindle(1) & ...
-                    vt_peakFreq <= vt_fSpindle(2));
+        vt_iPeaks   = find(vt_peakFreq >= vt_fevent(1) & ...
+                    vt_peakFreq <= vt_fevent(2));
                 
         if isempty(vt_iPeaks)
             continue
         end
         
-        % Should be recomputed the spindle limits?
+        % Should be recomputed the event limits?
         
         vt_centFreq(kk)	= vt_peakFreq(vt_iPeaks(1)); 
     end
@@ -336,8 +334,5 @@ for kk = 1:numel(vt_idEvents)
      
 end
 
-vt_centFreq     = vt_centFreq(vt_idEvents);
 mx_eventLims	= mx_eventBorder(vt_idEvents,:);
-
-[mx_eventLims,vt_idEvents]	= unique(mx_eventLims,'rows');
-vt_centFreq                 = vt_centFreq(vt_idEvents);
+mx_eventLims	= unique(mx_eventLims,'rows');

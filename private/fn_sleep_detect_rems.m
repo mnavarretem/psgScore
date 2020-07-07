@@ -1,29 +1,29 @@
-function [vt_remLoc,vt_semLoc] = fn_detectsleepREM(mx_eogSignal,st_Cnf)
-% [vt_remLoc,mx_eogSignal] = fn_detectsleepREM(mx_eogSignal,st_Cnf) 
+function [vt_remLoc,vt_semLoc] = fn_sleep_detect_rems(mx_eogSignal,st_cnf)
+% [vt_remLoc,mx_eogSignal] = fn_detectsleepREM(mx_eogSignal,st_cnf) 
 % detect all REM from channel mx_eogSignal depending on the 
-% settings in the structure st_Cnf. 
+% settings in the structure st_cnf. 
 %
 % vt_remLoc corresponds to a vector indicating the locations (in
-% samples) of each detected REM. st_Cnf corresponds to a structure with the
+% samples) of each detected REM. st_cnf corresponds to a structure with the
 % fields:
 %
-%   - st_Cnf.freqband:	1 x 2 vector indicating the frequency band limits
+%   - st_cnf.freqband:	1 x 2 vector indicating the frequency band limits
 %                       for REM detection, (default = [0.3 4])
 %
-%   - st_Cnf.fsampling:	Sampling frequency in hertz
+%   - st_cnf.fsampling:	Sampling frequency in hertz
 %
-%   - st_Cnf.threshold:	Negative amplitude threshold for detection of REM
+%   - st_cnf.threshold:	Negative amplitude threshold for detection of REM
 %                       (default = -65) in microvolts
 %   
-%   - st_Cnf.maxthresh:	Value inidicating the maximum value for REM amplitude. 
+%   - st_cnf.maxthresh:	Value inidicating the maximum value for REM amplitude. 
 %                       If the value is in the [0 1] interval, then
 %                       corresponds to percentage of cumulative amplitude.
 %                       If negative value, the it corresponds to raw
 %                       amplitude. (default = -300);
 %
-%   - st_Cnf.toFilter:	Filter input in REM band (default = false)
-%
-%
+%   - st_cnf.toFilter:	Filter input in REM band (default = false)
+
+%% GNU licence,
 % Copyright (C) <2017>  <Miguel Navarrete>
 % 
 % This program is free software: you can redistribute it and/or modify
@@ -39,7 +39,6 @@ function [vt_remLoc,vt_semLoc] = fn_detectsleepREM(mx_eogSignal,st_Cnf)
 % You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 %% Code starts here:
 
 % Based on:
@@ -48,52 +47,51 @@ function [vt_remLoc,vt_semLoc] = fn_detectsleepREM(mx_eogSignal,st_Cnf)
 % in IEEE Transactions on Biomedical Engineering, vol. 52, no. 8, 
 % pp. 1390-1396, Aug. 2005, doi: 10.1109/TBME.2005.851512.
 
-
 %%	- Check default inputs
 
 if nargin < 2   % if not input arguments, then use arguments by default    
-	st_Cnf  = struct;
+	st_cnf  = struct;
 end
     
-% Check whether st_Cnf fileds exist
-if ~isfield(st_Cnf,'freqband') 
-    st_Cnf.freqband     = [0.3 5];
+% Check whether st_cnf fileds exist
+if ~isfield(st_cnf,'freqband') 
+    st_cnf.freqband     = [0.3 5];
 end
 
-if ~isfield(st_Cnf,'fsampling')
-    st_Cnf.fsampling	= 1;
+if ~isfield(st_cnf,'fsampling')
+    st_cnf.fsampling	= 1;
 end
 
-if ~isfield(st_Cnf,'window')
-    st_Cnf.window	= st_Cnf.fsampling;
+if ~isfield(st_cnf,'window')
+    st_cnf.window	= st_cnf.fsampling;
 end
 
-if ~isfield(st_Cnf,'windowDeflection')
-    st_Cnf.winDefl	= 3*st_Cnf.fsampling;
+if ~isfield(st_cnf,'windowDeflection')
+    st_cnf.winDefl	= 3*st_cnf.fsampling;
 end
 
-if ~isfield(st_Cnf,'timeDeflection')
-    st_Cnf.tDeflect	= round(0.5*st_Cnf.fsampling);
+if ~isfield(st_cnf,'timeDeflection')
+    st_cnf.tDeflect	= round(0.5*st_cnf.fsampling);
 end
 
-if ~isfield(st_Cnf,'threshold')
-    st_Cnf.threshold	= -65;
+if ~isfield(st_cnf,'threshold')
+    st_cnf.threshold	= -65;
 end
 
-if ~isfield(st_Cnf,'minthresh')
-    st_Cnf.maxthresh	= 500;
+if ~isfield(st_cnf,'minthresh')
+    st_cnf.maxthresh	= 500;
 end
 
-if ~isfield(st_Cnf,'toFilter')
-    st_Cnf.toFilter	= false;
+if ~isfield(st_cnf,'toFilter')
+    st_cnf.toFilter	= false;
 end
 
-if ~isfield(st_Cnf,'hypnogram')
-    st_Cnf.hypnogram	= [];
+if ~isfield(st_cnf,'hypnogram')
+    st_cnf.hypnogram	= [];
 end
 
-if ~isfield(st_Cnf,'stage')
-    st_Cnf.stage	= [];
+if ~isfield(st_cnf,'stage')
+    st_cnf.stage	= [];
 end
 
 %%	- Filter input if required
@@ -102,17 +100,17 @@ if size(mx_eogSignal,1) < size(mx_eogSignal,2)
     mx_eogSignal	= mx_eogSignal';
 end
 
-if st_Cnf.toFilter
-    st_filterREM	= fn_designIIRfilter(st_Cnf.fsampling,st_Cnf.freqband,...
-                    [st_Cnf.freqband(1) - 0.1,st_Cnf.freqband(1) + 1]);
-    mx_eogSignal	= fn_filterOffline(mx_eogSignal,st_filterREM);
+if st_cnf.toFilter
+    st_filterREM	= fn_filter_designIIR(st_cnf.fsampling,st_cnf.freqband,...
+                    [st_cnf.freqband(1) - 0.1,st_cnf.freqband(1) + 1]);
+    mx_eogSignal	= fn_filter_offline(mx_eogSignal,st_filterREM);
 end
 
 %%	- Detect putative REM
 
 % Candidate REM Detection:
 vt_chProduct	= -mx_eogSignal(:,1).*mx_eogSignal(:,2);
-% vt_chProduct    = fn_rmstimeseries(vt_chProduct,st_Cnf.fsampling);
+% vt_chProduct    = fn_rmstimeseries(vt_chProduct,st_cnf.fsampling);
 
 % Threshold selection
 vt_Hi       = findextrema(vt_chProduct);
@@ -136,7 +134,7 @@ vt_featDeflect	= nan(size(vt_eoi));
 
 for kk = 1:numel(vt_eoi)
     
-    vt_idi  = -st_Cnf.winDefl:st_Cnf.winDefl;
+    vt_idi  = -st_cnf.winDefl:st_cnf.winDefl;
     vt_id   = vt_idi + vt_eoi(kk);
     
     if any(vt_id < 1) || any(vt_id > length(mx_eogSignal))
@@ -210,7 +208,7 @@ for kk = 1:numel(vt_eoi)
         continue;
     end
         
-    vt_idi  = -st_Cnf.window:st_Cnf.window;
+    vt_idi  = -st_cnf.window:st_cnf.window;
     vt_id   = vt_idi + nm_ceoiId;
     
     mx_ceog	= mx_eogSignal(vt_id,:);
@@ -231,7 +229,7 @@ for kk = 1:numel(vt_eoi)
     
 end
 
-vt_isEOI	= ~isnan(vt_featEidx) & vt_featMaxVal < st_Cnf.maxthresh;
+vt_isEOI	= ~isnan(vt_featEidx) & vt_featMaxVal < st_cnf.maxthresh;
 
 vt_featEidx     = vt_featEidx(vt_isEOI);
 vt_featEval     = vt_featEval(vt_isEOI);
@@ -242,7 +240,7 @@ vt_featSlope	= vt_featSlope(vt_isEOI);
 vt_featDeflect	= vt_featDeflect(vt_isEOI);
     
 vt_idCorrelated	= abs(vt_featCorr) > 0.25 & vt_featMaxVal > sqrt(nm_minThr);
-vt_idDeflect	= vt_featDeflect > st_Cnf.tDeflect;                
+vt_idDeflect	= vt_featDeflect > st_cnf.tDeflect;                
 vt_idSlope      = vt_featSlope < prctile(vt_featSlope,25);
 
 vt_isREM	= ~vt_idDeflect & ~vt_idSlope;
@@ -256,11 +254,11 @@ vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 %% Plot REM events
 % for kk = 1:numel(vt_remLoc)
 %     
-%     vt_idi  = -2*st_Cnf.window:2*st_Cnf.window;
+%     vt_idi  = -2*st_cnf.window:2*st_cnf.window;
 %     vt_id   = vt_idi + vt_remLoc(kk);
 %     
 %     mx_ceog	= mx_eogSignal(vt_id,:);
-%     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     plot(vt_idi/st_cnf.fsampling,mx_ceog)
 %     
 %     pause
 % end
@@ -268,7 +266,7 @@ vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 %% Plot SEM events
 % for kk = 1:numel(vt_semLoc)
 %     
-%     vt_idi  = -2*st_Cnf.window:2*st_Cnf.window;
+%     vt_idi  = -2*st_cnf.window:2*st_cnf.window;
 %     vt_id   = vt_idi + vt_semLoc(kk);
 %     
 %     
@@ -276,7 +274,7 @@ vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 %         continue
 %     end
 %     mx_ceog	= mx_eogSignal(vt_id,:);
-%     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     plot(vt_idi/st_cnf.fsampling,mx_ceog)
 %     pause
 % end
 
@@ -284,7 +282,7 @@ vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 %% Plot non EM events
 % for kk = 1:numel(vt_nemLoc)
 %     
-%     vt_idi  = -2*st_Cnf.window:2*st_Cnf.window;
+%     vt_idi  = -2*st_cnf.window:2*st_cnf.window;
 %     vt_id   = vt_idi + vt_nemLoc(kk);
 %     
 %     
@@ -292,6 +290,6 @@ vt_nemLoc	= vt_featEidx(~vt_isSEM & ~vt_isREM);
 %         continue
 %     end
 %     mx_ceog	= mx_eogSignal(vt_id,:);
-%     plot(vt_idi/st_Cnf.fsampling,mx_ceog)
+%     plot(vt_idi/st_cnf.fsampling,mx_ceog)
 %     pause
 % end

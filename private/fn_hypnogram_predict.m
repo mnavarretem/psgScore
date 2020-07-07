@@ -27,7 +27,6 @@ function st_hyp = fn_hypnogram_predict(mx_features,st_hyp)
 % along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 %% Load classifiers
-
 fprintf('Loading predictors: ')
 tic
 st_mdl.tree	= load('ob_hypno_RF.mat');
@@ -48,11 +47,9 @@ vt_hSVM     = predict(st_mdl.svm,mx_features);
 toc
 
 %% Save predictions
-
 mx_hypPred	= int8([vt_hTree(:),vt_hSVM(:)]');
 vt_arousal  = cell(size(mx_hypPred,1),1);
 
 st_hyp.dat          = vertcat(st_hyp.dat,mx_hypPred);
 st_hyp.arousals     = vertcat(st_hyp.arousals,vt_arousal);
-    
-    
+        

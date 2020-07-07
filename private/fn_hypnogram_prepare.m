@@ -1,15 +1,17 @@
 function mx_features	= fn_hypnogram_prepare(st_cfg)
-
 % mx_features	= fn_hypnogram_prepare(st_cfg) prepares hypnogram features 
 % to use in sleep stage classification
 %
+%   INPUT:
 % 	st_cfg.chRead	= eeg labels to evaluate;
 % 	st_cfg.chIdx	= index of eeg labels;
 % 	st_cfg.patterns = patterns structure 
 % 	st_cfg.spectrum = spectrum structure 
-
+%
+%   OUTPUT
+%   mx_features     = features matrix for sleep stage classification
 %% GNU licence,
-% Copyright (C) <2017>  <Miguel Navarrete>
+% Copyright (C) <2020>  <Miguel Navarrete>
 % 
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -31,6 +33,7 @@ st_patterns	= st_cfg.patterns;
 st_spectrum	= st_cfg.spectrum;
 
 clear st_cfg
+
 %% Select file and stim condition
 fprintf('    Summarizing data: ')
 tic
@@ -39,7 +42,7 @@ tic
 vt_timeEpoch        = 30*(0:(length(st_patterns.EM)-1));
 st_hypno.timeEpoch  = vt_timeEpoch(1:end-1);
 mx_chSpectrum       = cell(numel(st_spectrum.labels),...
-    numel(st_hypno.timeEpoch));
+                    numel(st_hypno.timeEpoch));
 
 
 for tt = 1:numel(vt_timeEpoch)
