@@ -12,6 +12,8 @@ vt_chEEG	= st_ch.EEG;
 vt_chEOG	= st_ch.EOG;
 vt_chEMG	= st_ch.EMG;
 
+nm_resolution   = 2^16;
+
 vt_tfLims       = [0.3,25];
 vt_freqPassEEG  = [0.3,35];
 vt_freqPassEMG  = [10,100];
@@ -40,7 +42,6 @@ vt_thetaFreq    = [4,8];
 vt_alphaFreq    = [8,13];
 vt_muFreq       = [12,16];
 vt_betaFreq     = [16,30];
-
 
 vt_deltaId	= vt_deltaFreq(1) <= vt_freqTF & vt_freqTF <= vt_deltaFreq(2);
 vt_thetaId	= vt_thetaFreq(1) <= vt_freqTF & vt_freqTF <= vt_thetaFreq(2);

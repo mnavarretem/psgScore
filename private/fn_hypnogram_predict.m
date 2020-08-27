@@ -51,5 +51,5 @@ mx_hypPred	= int8([vt_hTree(:),vt_hSVM(:)]');
 vt_arousal  = cell(size(mx_hypPred,1),1);
 
 st_hyp.dat          = vertcat(st_hyp.dat,mx_hypPred);
-st_hyp.arousals     = vertcat(st_hyp.arousals,vt_arousal);
+st_hyp.arousals     = vertcat(st_hyp.arousals(:),vt_arousal);
         

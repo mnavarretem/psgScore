@@ -1,6 +1,6 @@
 function [mx_eventSample] = fn_sleep_detect_arousal(mx_tf,st_cnf)
-% [mx_eventLims,vt_centFreq,vt_eeg] = fn_sleep_detect_arousal(vt_eeg,st_cnf) 
-% detect all sleep arousals from eeg Time-Freq mx_tf depending on the 
+% [mx_eventLims,vt_centFreq,vt_eeg] = fn_sleep_detect_arousal(mx_tf,st_cnf) 
+% detect all sleep arousals from eeg Time-Freq (mx_tf) depending on the 
 % settings in the structure st_cnf. 
 %
 % mx_eventLims corresponds to a matrix indicating the locations (in
