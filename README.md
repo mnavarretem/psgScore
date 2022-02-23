@@ -50,6 +50,10 @@ Please make sure to update tests as appropriate.
 ## Project status
 WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.
 
+## Acknowledgments
+- Initial commit thanks to works under the the European Research Council grant (681607)
+- Further developments thanks to MINCIENCIAS call for grants 848
+
 ## Authors
 
 * **Miguel Navarrete** - *Initial work* - [mnavarretem](https://github.com/mnavarretem)
